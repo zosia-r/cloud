@@ -1,5 +1,5 @@
 import json
-from message_broker import MessageBroker
+from base import MessageBroker
 
 class Publisher(MessageBroker):
     def publish(self, event_instance):
