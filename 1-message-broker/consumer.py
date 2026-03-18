@@ -1,5 +1,5 @@
 import json
-from base import MessageBroker
+from message_broker import MessageBroker
 
 class Consumer(MessageBroker):
     def consume(self, event_class, callback):
