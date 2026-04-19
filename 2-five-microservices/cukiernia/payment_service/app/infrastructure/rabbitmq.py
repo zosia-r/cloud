@@ -3,7 +3,7 @@ import os
 import logging
 
 logger = logging.getLogger(__name__)
-RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqps://user:password@your-cloudamqp-host/vhost")
+RABBITMQ_URL = "amqps://lbjzkreb:fqegv2EgZVI9II3T10Oc-19oRRQK_JrY@kebnekaise.lmq.cloudamqp.com/lbjzkreb"
 
 
 async def get_rabbitmq_connection():

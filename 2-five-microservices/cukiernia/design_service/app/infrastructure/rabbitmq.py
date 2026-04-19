@@ -4,7 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqps://user:password@your-cloudamqp-host/vhost")
+RABBITMQ_URL = "amqps://lbjzkreb:fqegv2EgZVI9II3T10Oc-19oRRQK_JrY@kebnekaise.lmq.cloudamqp.com/lbjzkreb"
 
 
 async def get_rabbitmq_connection():
@@ -22,7 +22,7 @@ async def publish_message(queue_name: str, message: dict):
         channel = await connection.channel()
         queue = await channel.declare_queue(queue_name, durable=True)
         await channel.default_exchange.publish(
-            aio_pika.BasicProperties(
+            aio_pika.Message(
                 body=json.dumps(message).encode(),
                 delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
             ),
