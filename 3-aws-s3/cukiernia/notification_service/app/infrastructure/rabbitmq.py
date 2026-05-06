@@ -3,7 +3,8 @@ import json
 import logging
 import asyncio
 import os
-from mediator import Mediator
+from diator.mediator import Mediator
+from diator.requests import RequestMap
 from app.domain.models import SendNotificationCommand
 from app.infrastructure.sqlite_repository import SQLiteNotificationRepository
 from app.core.handlers import SendNotificationHandler
@@ -25,6 +26,22 @@ TEMPLATES = {
         lambda d: ("client@example.com",
                    f"Płatność dla #{d.get('order_id','?')} autoryzowana. Kod: {d.get('authorization_code','N/A')}")),
 }
+
+# Simple container for handler instances
+class SimpleContainer:
+    def __init__(self, handlers_map: dict):
+        self.handlers = handlers_map
+    
+    async def resolve(self, handler_type):
+        return self.handlers.get(handler_type)
+
+def create_mediator(repo):
+    """Tworzy Mediator z diator"""
+    handler = SendNotificationHandler(repo)
+    container = SimpleContainer({SendNotificationHandler: handler})
+    request_map = RequestMap()
+    request_map.bind(SendNotificationCommand, SendNotificationHandler)
+    return Mediator(request_map=request_map, container=container)
 
 
 async def start_consumer():
@@ -60,8 +77,7 @@ async def start_consumer():
                             order_id=data.get("order_id", "unknown"),
                             recipient_email=email, message=text,
                             notification_type=notif_type)
-                        m = Mediator()
-                        m.register_command(SendNotificationCommand, SendNotificationHandler(repo))
+                        m = create_mediator(repo)
                         await m.send(cmd)
                     except Exception as e:
                         logger.error(f"Błąd przetwarzania wiadomości z {qname}: {e}")

@@ -1,5 +1,5 @@
 import logging
-from mediator import CommandHandler, QueryHandler
+from diator.requests import RequestHandler
 from app.domain.models import Order
 from app.domain.repository import OrderRepository
 from app.core.commands.order_commands import CreateOrderCommand, UpdateOrderStatusCommand
@@ -13,7 +13,7 @@ QUEUE_ORDER_CREATED = "order.created"
 
 # ── COMMAND HANDLERS ──────────────────────────────────────────────────────────
 
-class CreateOrderHandler(CommandHandler):
+class CreateOrderHandler(RequestHandler[CreateOrderCommand, str]):
     """
     CQS: Command — modyfikuje stan (tworzy zamówienie w bazie, publikuje event).
     Nie zwraca danych biznesowych — zwraca tylko ID utworzonego zasobu.
@@ -43,7 +43,7 @@ class CreateOrderHandler(CommandHandler):
         return saved.id
 
 
-class UpdateOrderStatusHandler(CommandHandler):
+class UpdateOrderStatusHandler(RequestHandler[UpdateOrderStatusCommand, str]):
     """
     CQS: Command — modyfikuje status zamówienia.
     """
@@ -61,7 +61,7 @@ class UpdateOrderStatusHandler(CommandHandler):
 
 # ── QUERY HANDLERS ────────────────────────────────────────────────────────────
 
-class GetOrderHandler(QueryHandler):
+class GetOrderHandler(RequestHandler[GetOrderQuery, Order]):
     """
     CQS: Query — tylko odczytuje, nic nie modyfikuje.
     """
@@ -76,7 +76,7 @@ class GetOrderHandler(QueryHandler):
         return order
 
 
-class ListOrdersHandler(QueryHandler):
+class ListOrdersHandler(RequestHandler[ListOrdersQuery, list]):
     """
     CQS: Query — zwraca listę wszystkich zamówień.
     """

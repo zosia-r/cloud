@@ -1,5 +1,5 @@
 import uuid, logging
-from mediator import CommandHandler, QueryHandler, Mediator
+from diator.requests import RequestHandler
 from app.domain.models import Payment, PaymentStatus
 from app.core.commands.payment_commands import ProcessPaymentCommand, GetPaymentByOrderQuery, ListPaymentsQuery
 from app.infrastructure.sqlite_repository import SQLitePaymentRepository
@@ -8,7 +8,7 @@ from app.infrastructure.rabbitmq import publish_message
 logger = logging.getLogger(__name__)
 
 
-class ProcessPaymentHandler(CommandHandler):
+class ProcessPaymentHandler(RequestHandler[ProcessPaymentCommand, str]):
     def __init__(self, repo):
         self.repo = repo
 
@@ -27,7 +27,7 @@ class ProcessPaymentHandler(CommandHandler):
         return saved.id
 
 
-class GetPaymentByOrderHandler(QueryHandler):
+class GetPaymentByOrderHandler(RequestHandler[GetPaymentByOrderQuery, Payment]):
     def __init__(self, repo):
         self.repo = repo
 
@@ -39,7 +39,7 @@ class GetPaymentByOrderHandler(QueryHandler):
         return payment
 
 
-class ListPaymentsHandler(QueryHandler):
+class ListPaymentsHandler(RequestHandler[ListPaymentsQuery, list]):
     def __init__(self, repo):
         self.repo = repo
 

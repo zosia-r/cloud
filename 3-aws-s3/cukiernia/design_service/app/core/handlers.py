@@ -1,6 +1,6 @@
 import os
 import logging
-from mediator import CommandHandler, QueryHandler
+from diator.requests import RequestHandler
 from app.domain.models import DesignFile
 from app.domain.repository import DesignRepository
 from app.core.commands.design_commands import (
@@ -15,7 +15,7 @@ QUEUE_DESIGN_UPLOADED = "design.uploaded"
 
 # ── COMMAND HANDLERS ──────────────────────────────────────────────────────────
 
-class UploadDesignHandler(CommandHandler):
+class UploadDesignHandler(RequestHandler[UploadDesignCommand, str]):
     """
     CQS: Command — uploaduje plik do S3, zapisuje metadane w bazie, publikuje event.
     """
@@ -74,7 +74,7 @@ class UploadDesignHandler(CommandHandler):
 
 # ── QUERY HANDLERS ────────────────────────────────────────────────────────────
 
-class GetDesignHandler(QueryHandler):
+class GetDesignHandler(RequestHandler[GetDesignQuery, DesignFile]):
     """CQS: Query — pobiera metadane pliku z bazy."""
     def __init__(self, repo: DesignRepository):
         self.repo = repo
@@ -87,7 +87,7 @@ class GetDesignHandler(QueryHandler):
         return design
 
 
-class GetDownloadUrlHandler(QueryHandler):
+class GetDownloadUrlHandler(RequestHandler[GetDownloadUrlQuery, dict]):
     """
     CQS: Query — generuje świeży presigned URL z S3.
     Nie modyfikuje niczego w bazie — tylko pyta S3 o URL.
@@ -112,7 +112,7 @@ class GetDownloadUrlHandler(QueryHandler):
         }
 
 
-class ListDesignsHandler(QueryHandler):
+class ListDesignsHandler(RequestHandler[ListDesignsQuery, list]):
     """CQS: Query — zwraca listę plików (opcjonalnie filtrowaną po order_id)."""
     def __init__(self, repo: DesignRepository):
         self.repo = repo

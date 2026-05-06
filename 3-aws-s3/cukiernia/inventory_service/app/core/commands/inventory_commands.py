@@ -1,18 +1,18 @@
-from mediator import Command, Query
 from dataclasses import dataclass
+from diator.requests import Request
 
 
-@dataclass
-class ReserveIngredientsCommand(Command):
+@dataclass(frozen=True)
+class ReserveIngredientsCommand(Request):
     order_id: str
     quantity_multiplier: int = 1
 
 
-@dataclass
-class ListIngredientsQuery(Query):
+@dataclass(frozen=True)
+class ListIngredientsQuery(Request):
     pass
 
 
-@dataclass
-class ListReservationsQuery(Query):
+@dataclass(frozen=True)
+class ListReservationsQuery(Request):
     order_id: str = None

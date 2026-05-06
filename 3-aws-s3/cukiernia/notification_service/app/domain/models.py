@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from mediator import Command, Query
+from diator.requests import Request
 
 
 @dataclass
@@ -15,14 +15,14 @@ class Notification:
     created_at: datetime = field(default_factory=datetime.utcnow)
 
 
-@dataclass
-class SendNotificationCommand(Command):
+@dataclass(frozen=True)
+class SendNotificationCommand(Request):
     order_id: str
     recipient_email: str
     message: str
     notification_type: str
 
 
-@dataclass
-class ListNotificationsQuery(Query):
+@dataclass(frozen=True)
+class ListNotificationsQuery(Request):
     order_id: str = None

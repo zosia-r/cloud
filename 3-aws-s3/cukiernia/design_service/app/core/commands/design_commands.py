@@ -1,11 +1,11 @@
-from mediator import Command, Query
 from dataclasses import dataclass
+from diator.requests import Request
 
 
 # ── COMMANDS ──────────────────────────────────────────────────────────────────
 
-@dataclass
-class UploadDesignCommand(Command):
+@dataclass(frozen=True)
+class UploadDesignCommand(Request):
     order_id: str
     filename: str
     file_content: bytes
@@ -14,18 +14,18 @@ class UploadDesignCommand(Command):
 
 # ── QUERIES ───────────────────────────────────────────────────────────────────
 
-@dataclass
-class GetDesignQuery(Query):
+@dataclass(frozen=True)
+class GetDesignQuery(Request):
     design_id: str
 
 
-@dataclass
-class GetDownloadUrlQuery(Query):
+@dataclass(frozen=True)
+class GetDownloadUrlQuery(Request):
     """Pobiera tymczasowy presigned URL z S3 do pobrania pliku."""
     design_id: str
     expiration_seconds: int = 3600
 
 
-@dataclass
-class ListDesignsQuery(Query):
+@dataclass(frozen=True)
+class ListDesignsQuery(Request):
     order_id: str | None = None

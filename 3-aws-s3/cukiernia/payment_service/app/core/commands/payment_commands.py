@@ -1,19 +1,19 @@
-from mediator import Command, Query
 from dataclasses import dataclass
+from diator.requests import Request
 
 
-@dataclass
-class ProcessPaymentCommand(Command):
+@dataclass(frozen=True)
+class ProcessPaymentCommand(Request):
     order_id: str
     amount: float
     currency: str = "PLN"
 
 
-@dataclass
-class GetPaymentByOrderQuery(Query):
+@dataclass(frozen=True)
+class GetPaymentByOrderQuery(Request):
     order_id: str
 
 
-@dataclass
-class ListPaymentsQuery(Query):
+@dataclass(frozen=True)
+class ListPaymentsQuery(Request):
     pass

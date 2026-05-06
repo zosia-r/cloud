@@ -1,11 +1,11 @@
 import logging
-from mediator import CommandHandler, QueryHandler
+from diator.requests import RequestHandler
 from app.domain.models import Notification, SendNotificationCommand, ListNotificationsQuery
 
 logger = logging.getLogger(__name__)
 
 
-class SendNotificationHandler(CommandHandler):
+class SendNotificationHandler(RequestHandler[SendNotificationCommand, str]):
     def __init__(self, repo):
         self.repo = repo
 
@@ -18,7 +18,7 @@ class SendNotificationHandler(CommandHandler):
         return saved.id
 
 
-class ListNotificationsHandler(QueryHandler):
+class ListNotificationsHandler(RequestHandler[ListNotificationsQuery, list]):
     def __init__(self, repo):
         self.repo = repo
 

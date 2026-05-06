@@ -1,13 +1,13 @@
-from mediator import Query
 from dataclasses import dataclass
 from typing import Optional
+from diator.requests import Request
 
 
-@dataclass
-class GetOrderQuery(Query):
+@dataclass(frozen=True)
+class GetOrderQuery(Request):
     order_id: str
 
 
-@dataclass
-class ListOrdersQuery(Query):
+@dataclass(frozen=True)
+class ListOrdersQuery(Request):
     pass

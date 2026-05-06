@@ -1,5 +1,5 @@
 import logging
-from mediator import CommandHandler, QueryHandler, Mediator
+from diator.requests import RequestHandler
 from app.domain.models import Reservation
 from app.core.commands.inventory_commands import (
     ReserveIngredientsCommand, ListIngredientsQuery, ListReservationsQuery
@@ -17,7 +17,7 @@ DEFAULT_INGREDIENTS = [
 ]
 
 
-class ReserveIngredientsHandler(CommandHandler):
+class ReserveIngredientsHandler(RequestHandler[ReserveIngredientsCommand, str]):
     def __init__(self, ing_repo, res_repo):
         self.ing_repo = ing_repo
         self.res_repo = res_repo
@@ -44,7 +44,7 @@ class ReserveIngredientsHandler(CommandHandler):
         return command.order_id
 
 
-class ListIngredientsHandler(QueryHandler):
+class ListIngredientsHandler(RequestHandler[ListIngredientsQuery, list]):
     def __init__(self, repo):
         self.repo = repo
 
@@ -53,7 +53,7 @@ class ListIngredientsHandler(QueryHandler):
         return await self.repo.find_all()
 
 
-class ListReservationsHandler(QueryHandler):
+class ListReservationsHandler(RequestHandler[ListReservationsQuery, list]):
     def __init__(self, repo):
         self.repo = repo
 
