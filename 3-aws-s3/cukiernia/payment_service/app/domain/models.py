@@ -3,13 +3,10 @@ from datetime import datetime
 from enum import Enum
 import uuid
 
-
 class PaymentStatus(str, Enum):
     PENDING = "pending"
     AUTHORIZED = "authorized"
     FAILED = "failed"
-    REFUNDED = "refunded"
-
 
 @dataclass
 class Payment:

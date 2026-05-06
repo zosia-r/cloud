@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List
 from app.domain.models import Notification
 
 
 class NotificationRepository(ABC):
-
     @abstractmethod
     async def save(self, notification: Notification) -> Notification:
         pass

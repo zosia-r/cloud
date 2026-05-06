@@ -10,7 +10,7 @@ DB_PATH = "order_service.db"
 
 
 async def init_db():
-    logger.info("Initializing OrderService database")
+    logger.info("Inicjalizacja bazy OrderService")
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             CREATE TABLE IF NOT EXISTS orders (
@@ -25,13 +25,13 @@ async def init_db():
             )
         """)
         await db.commit()
-    logger.info("OrderService database initialized")
+    logger.info("Baza OrderService zainicjalizowana")
 
 
 class SQLiteOrderRepository(OrderRepository):
 
     async def save(self, order: Order) -> Order:
-        logger.info(f"Saving order id={order.id} to database")
+        logger.info(f"save: order id={order.id}")
         async with aiosqlite.connect(DB_PATH) as db:
             await db.execute(
                 "INSERT INTO orders VALUES (?,?,?,?,?,?,?,?)",
@@ -40,31 +40,26 @@ class SQLiteOrderRepository(OrderRepository):
                  order.created_at.isoformat(), order.updated_at.isoformat())
             )
             await db.commit()
-        logger.info(f"Order id={order.id} saved successfully")
         return order
 
     async def find_by_id(self, order_id: str) -> Optional[Order]:
-        logger.info(f"Looking up order id={order_id}")
+        logger.info(f"find_by_id: order_id={order_id}")
         async with aiosqlite.connect(DB_PATH) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM orders WHERE id=?", (order_id,))
             row = await cursor.fetchone()
-        if not row:
-            logger.warning(f"Order id={order_id} not found")
-            return None
-        return _row_to_order(row)
+        return _row_to_order(row) if row else None
 
     async def find_all(self) -> List[Order]:
-        logger.info("Fetching all orders from database")
+        logger.info("find_all: pobieranie wszystkich zamówień")
         async with aiosqlite.connect(DB_PATH) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM orders ORDER BY created_at DESC")
             rows = await cursor.fetchall()
-        logger.info(f"Found {len(rows)} orders")
         return [_row_to_order(r) for r in rows]
 
     async def update_status(self, order_id: str, status: str) -> Optional[Order]:
-        logger.info(f"Updating order id={order_id} status to {status}")
+        logger.info(f"update_status: order_id={order_id}, status={status}")
         now = datetime.utcnow().isoformat()
         async with aiosqlite.connect(DB_PATH) as db:
             await db.execute(
@@ -77,12 +72,10 @@ class SQLiteOrderRepository(OrderRepository):
 
 def _row_to_order(row) -> Order:
     return Order(
-        id=row["id"],
-        customer_name=row["customer_name"],
+        id=row["id"], customer_name=row["customer_name"],
         customer_email=row["customer_email"],
         product_description=row["product_description"],
-        quantity=row["quantity"],
-        status=OrderStatus(row["status"]),
+        quantity=row["quantity"], status=OrderStatus(row["status"]),
         created_at=datetime.fromisoformat(row["created_at"]),
         updated_at=datetime.fromisoformat(row["updated_at"]),
     )

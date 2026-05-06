@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List
 import logging
-from app.core.use_cases import (
-    CreateOrderUseCase, GetOrderUseCase,
-    ListOrdersUseCase, UpdateOrderStatusUseCase
+from mediator import Mediator
+from app.core.commands.order_commands import CreateOrderCommand, UpdateOrderStatusCommand
+from app.core.queries.order_queries import GetOrderQuery, ListOrdersQuery
+from app.core.handlers import (
+    CreateOrderHandler, UpdateOrderStatusHandler,
+    GetOrderHandler, ListOrdersHandler
 )
 from app.infrastructure.sqlite_repository import SQLiteOrderRepository
 
@@ -12,8 +14,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 
-def get_repo():
-    return SQLiteOrderRepository()
+def get_mediator() -> Mediator:
+    repo = SQLiteOrderRepository()
+    m = Mediator()
+    # Rejestracja command handlerów
+    m.register_command(CreateOrderCommand, CreateOrderHandler(repo))
+    m.register_command(UpdateOrderStatusCommand, UpdateOrderStatusHandler(repo))
+    # Rejestracja query handlerów
+    m.register_query(GetOrderQuery, GetOrderHandler(repo))
+    m.register_query(ListOrdersQuery, ListOrdersHandler(repo))
+    return m
 
 
 class CreateOrderRequest(BaseModel):
@@ -28,35 +38,41 @@ class UpdateStatusRequest(BaseModel):
 
 
 @router.post("/", status_code=201)
-async def create_order(body: CreateOrderRequest, repo=Depends(get_repo)):
-    logger.info(f"POST /orders - creating order for {body.customer_email}")
-    uc = CreateOrderUseCase(repo)
-    order = await uc.execute(
-        body.customer_name, body.customer_email,
-        body.product_description, body.quantity
-    )
-    return {"order_id": order.id, "status": order.status, "message": "Order created successfully"}
+async def create_order(body: CreateOrderRequest):
+    logger.info(f"POST /orders - customer={body.customer_email}")
+    m = get_mediator()
+    # send() = Command (modyfikuje stan)
+    order_id = await m.send(CreateOrderCommand(
+        customer_name=body.customer_name,
+        customer_email=body.customer_email,
+        product_description=body.product_description,
+        quantity=body.quantity,
+    ))
+    return {"order_id": order_id, "status": "pending", "message": "Zamówienie utworzone"}
 
 
-@router.get("/", response_model=List[dict])
-async def list_orders(repo=Depends(get_repo)):
-    logger.info("GET /orders - listing all orders")
-    uc = ListOrdersUseCase(repo)
-    orders = await uc.execute()
+@router.get("/")
+async def list_orders():
+    logger.info("GET /orders")
+    m = get_mediator()
+    # query() = Query (tylko odczyt)
+    orders = await m.query(ListOrdersQuery())
     return [
-        {"id": o.id, "customer_name": o.customer_name, "customer_email": o.customer_email,
-         "product_description": o.product_description, "quantity": o.quantity,
-         "status": o.status, "created_at": o.created_at.isoformat()}
+        {"id": o.id, "customer_name": o.customer_name,
+         "customer_email": o.customer_email,
+         "product_description": o.product_description,
+         "quantity": o.quantity, "status": o.status,
+         "created_at": o.created_at.isoformat()}
         for o in orders
     ]
 
 
 @router.get("/{order_id}")
-async def get_order(order_id: str, repo=Depends(get_repo)):
+async def get_order(order_id: str):
     logger.info(f"GET /orders/{order_id}")
     try:
-        uc = GetOrderUseCase(repo)
-        order = await uc.execute(order_id)
+        m = get_mediator()
+        order = await m.query(GetOrderQuery(order_id=order_id))
         return {"id": order.id, "customer_name": order.customer_name,
                 "customer_email": order.customer_email,
                 "product_description": order.product_description,
@@ -68,11 +84,11 @@ async def get_order(order_id: str, repo=Depends(get_repo)):
 
 
 @router.patch("/{order_id}/status")
-async def update_status(order_id: str, body: UpdateStatusRequest, repo=Depends(get_repo)):
-    logger.info(f"PATCH /orders/{order_id}/status - new status={body.status}")
+async def update_status(order_id: str, body: UpdateStatusRequest):
+    logger.info(f"PATCH /orders/{order_id}/status → {body.status}")
     try:
-        uc = UpdateOrderStatusUseCase(repo)
-        order = await uc.execute(order_id, body.status)
-        return {"id": order.id, "status": order.status, "message": "Status updated"}
+        m = get_mediator()
+        await m.send(UpdateOrderStatusCommand(order_id=order_id, status=body.status))
+        return {"id": order_id, "status": body.status, "message": "Status zaktualizowany"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

@@ -10,6 +10,10 @@ class DesignRepository(ABC):
         pass
 
     @abstractmethod
+    async def find_by_id(self, design_id: str) -> Optional[DesignFile]:
+        pass
+
+    @abstractmethod
     async def find_by_order_id(self, order_id: str) -> List[DesignFile]:
         pass
 

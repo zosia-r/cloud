@@ -1,6 +1,7 @@
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-import uuid
+from mediator import Command, Query
 
 
 @dataclass
@@ -9,6 +10,19 @@ class Notification:
     order_id: str = ""
     recipient_email: str = ""
     message: str = ""
-    notification_type: str = ""   # order_created | design_uploaded | inventory_reserved | payment_processed
+    notification_type: str = ""
     status: str = "sent"
     created_at: datetime = field(default_factory=datetime.utcnow)
+
+
+@dataclass
+class SendNotificationCommand(Command):
+    order_id: str
+    recipient_email: str
+    message: str
+    notification_type: str
+
+
+@dataclass
+class ListNotificationsQuery(Query):
+    order_id: str = None

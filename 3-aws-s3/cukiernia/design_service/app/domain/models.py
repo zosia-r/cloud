@@ -9,4 +9,7 @@ class DesignFile:
     order_id: str = ""
     filename: str = ""
     extension: str = ""
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    file_size: int = 0           # rozmiar w bajtach
+    s3_key: str = ""             # ścieżka w S3 np. "uploads/order-123/wzor.png"
+    s3_url: str = ""             # presigned URL do pobrania
+    uploaded_at: datetime = field(default_factory=datetime.utcnow)

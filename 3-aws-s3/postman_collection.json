@@ -1,0 +1,565 @@
+{
+  "info": {
+    "name": "System Cukierniczy v2 — S3 + CQS + Mediator",
+    "description": "Testy REST API dla systemu v2.\n\nCo testujemy:\n- Health checks wszystkich 5 serwisów\n- Testy negatywne (walidacja danych)\n- Pełny flow zamówienia przez Mediator (CQS)\n- Upload pliku do Amazon S3\n- Pobranie presigned URL z S3\n- Komunikacja przez RabbitMQ (end-to-end)\n\nPorty:\n- OrderService:        http://localhost:8001\n- DesignService:       http://localhost:8002\n- InventoryService:    http://localhost:8003\n- PaymentService:      http://localhost:8004\n- NotificationService: http://localhost:8005",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "order_id",   "value": "", "type": "string" },
+    { "key": "design_id",  "value": "", "type": "string" },
+    { "key": "s3_key",     "value": "", "type": "string" },
+    { "key": "order_service_url",        "value": "http://localhost:8001", "type": "string" },
+    { "key": "design_service_url",       "value": "http://localhost:8002", "type": "string" },
+    { "key": "inventory_service_url",    "value": "http://localhost:8003", "type": "string" },
+    { "key": "payment_service_url",      "value": "http://localhost:8004", "type": "string" },
+    { "key": "notification_service_url", "value": "http://localhost:8005", "type": "string" }
+  ],
+  "item": [
+
+    {
+      "name": "1. Health Checks",
+      "item": [
+        {
+          "name": "HC-1 OrderService",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[HC-1] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[HC-1] service=OrderService, status=ok', () => {",
+            "    const j = pm.response.json();",
+            "    pm.expect(j.service).to.eql('OrderService');",
+            "    pm.expect(j.status).to.eql('ok');",
+            "});",
+            "pm.test('[HC-1] Czas odpowiedzi < 1000ms', () => pm.expect(pm.response.responseTime).to.be.below(1000));"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{order_service_url}}/health" }
+        },
+        {
+          "name": "HC-2 DesignService",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[HC-2] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[HC-2] service=DesignService, status=ok', () => {",
+            "    const j = pm.response.json();",
+            "    pm.expect(j.service).to.eql('DesignService');",
+            "    pm.expect(j.status).to.eql('ok');",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{design_service_url}}/health" }
+        },
+        {
+          "name": "HC-3 InventoryService",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[HC-3] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[HC-3] service=InventoryService, status=ok', () => {",
+            "    const j = pm.response.json();",
+            "    pm.expect(j.service).to.eql('InventoryService');",
+            "    pm.expect(j.status).to.eql('ok');",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{inventory_service_url}}/health" }
+        },
+        {
+          "name": "HC-4 PaymentService",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[HC-4] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[HC-4] service=PaymentService, status=ok', () => {",
+            "    const j = pm.response.json();",
+            "    pm.expect(j.service).to.eql('PaymentService');",
+            "    pm.expect(j.status).to.eql('ok');",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{payment_service_url}}/health" }
+        },
+        {
+          "name": "HC-5 NotificationService",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[HC-5] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[HC-5] service=NotificationService, status=ok', () => {",
+            "    const j = pm.response.json();",
+            "    pm.expect(j.service).to.eql('NotificationService');",
+            "    pm.expect(j.status).to.eql('ok');",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{notification_service_url}}/health" }
+        }
+      ]
+    },
+
+    {
+      "name": "2. Testy negatywne — walidacja",
+      "item": [
+        {
+          "name": "NEG-1 Puste body przy tworzeniu zamówienia → 422",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[NEG-1] Status 422', () => pm.response.to.have.status(422));",
+            "pm.test('[NEG-1] Odpowiedź zawiera detail z listą błędów walidacji', () => {",
+            "    const j = pm.response.json();",
+            "    pm.expect(j).to.have.property('detail');",
+            "    pm.expect(j.detail).to.be.an('array').and.not.empty;",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{order_service_url}}/orders/"
+          }
+        },
+        {
+          "name": "NEG-2 Brak pola amount przy płatności → 422",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[NEG-2] Status 422', () => pm.response.to.have.status(422));",
+            "pm.test('[NEG-2] Odpowiedź zawiera detail', () => {",
+            "    pm.expect(pm.response.json()).to.have.property('detail');",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"order_id\": \"test\", \"currency\": \"PLN\" }" },
+            "url": "{{payment_service_url}}/payments/"
+          }
+        },
+        {
+          "name": "NEG-3 Nieistniejące zamówienie → 404",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[NEG-3] Status 404', () => pm.response.to.have.status(404));",
+            "pm.test('[NEG-3] Odpowiedź zawiera detail z opisem błędu', () => {",
+            "    const j = pm.response.json();",
+            "    pm.expect(j).to.have.property('detail');",
+            "    pm.expect(j.detail).to.be.a('string').and.not.empty;",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{order_service_url}}/orders/nieistniejace-id-xyz-000" }
+        },
+        {
+          "name": "NEG-4 Download nieistniejącego pliku z S3 → 404",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[NEG-4] Status 404', () => pm.response.to.have.status(404));",
+            "pm.test('[NEG-4] Odpowiedź zawiera detail', () => {",
+            "    pm.expect(pm.response.json()).to.have.property('detail');",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{design_service_url}}/designs/nieistniejacy-plik-000/download" }
+        },
+        {
+          "name": "NEG-5 Płatność dla nieistniejącego zamówienia → 404",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[NEG-5] Status 404', () => pm.response.to.have.status(404));",
+            "pm.test('[NEG-5] Odpowiedź zawiera detail', () => {",
+            "    pm.expect(pm.response.json()).to.have.property('detail');",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{payment_service_url}}/payments/order/nieistniejace-id-xyz" }
+        }
+      ]
+    },
+
+    {
+      "name": "3. Flow zamówienia — CQS przez Mediator",
+      "item": [
+        {
+          "name": "FLOW-1 [Command] Utwórz zamówienie",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "exec": [
+                "// Unikalny email przy każdym uruchomieniu — brak kolizji w bazie",
+                "pm.collectionVariables.set('customer_email', `klient_${Date.now()}@example.com`);"
+              ], "type": "text/javascript" }
+            },
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "pm.test('[FLOW-1] Status 201 Created', () => pm.response.to.have.status(201));",
+                "pm.test('[FLOW-1] Command zwraca order_id w formacie UUID', () => {",
+                "    const j = pm.response.json();",
+                "    pm.expect(j).to.have.property('order_id');",
+                "    pm.expect(j.order_id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);",
+                "    pm.collectionVariables.set('order_id', j.order_id);",
+                "    console.log('[FLOW-1] Zapisano order_id:', j.order_id);",
+                "});",
+                "pm.test('[FLOW-1] Nowe zamówienie ma status pending', () => {",
+                "    pm.expect(pm.response.json().status).to.eql('pending');",
+                "});",
+                "pm.test('[FLOW-1] Content-Type: application/json', () => {",
+                "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                "});"
+              ], "type": "text/javascript" }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Anna Kowalska\",\n  \"customer_email\": \"{{customer_email}}\",\n  \"product_description\": \"Tort urodzinowy czekoladowy z dekoracjami\",\n  \"quantity\": 2\n}"
+            },
+            "url": "{{order_service_url}}/orders/"
+          }
+        },
+
+        {
+          "name": "FLOW-2 [Query] Pobierz zamówienie — dane zgodne z Command",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[FLOW-2] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[FLOW-2] Query zwraca zamówienie o poprawnym ID', () => {",
+            "    pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('order_id'));",
+            "});",
+            "pm.test('[FLOW-2] Dane klienta są zgodne z danymi wysłanymi w Command', () => {",
+            "    const j = pm.response.json();",
+            "    pm.expect(j.customer_name).to.eql('Anna Kowalska');",
+            "    pm.expect(j.quantity).to.eql(2);",
+            "    pm.expect(j.status).to.eql('pending');",
+            "});",
+            "pm.test('[FLOW-2] Zamówienie posiada pole created_at', () => {",
+            "    pm.expect(pm.response.json()).to.have.property('created_at');",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{order_service_url}}/orders/{{order_id}}" }
+        },
+
+        {
+          "name": "FLOW-3 [Query] Lista zamówień zawiera nowe zamówienie",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[FLOW-3] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[FLOW-3] Query zwraca tablicę', () => {",
+            "    pm.expect(pm.response.json()).to.be.an('array');",
+            "});",
+            "pm.test('[FLOW-3] Tablica zawiera nowo utworzone zamówienie', () => {",
+            "    const found = pm.response.json().find(o => o.id === pm.collectionVariables.get('order_id'));",
+            "    pm.expect(found).to.not.be.undefined;",
+            "    pm.expect(found.status).to.eql('pending');",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{order_service_url}}/orders/" }
+        },
+
+        {
+          "name": "FLOW-4 [Command] Upload pliku do Amazon S3",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "pm.test('[FLOW-4] Status 201 Created', () => pm.response.to.have.status(201));",
+                "pm.test('[FLOW-4] Command zwraca design_id', () => {",
+                "    const j = pm.response.json();",
+                "    pm.expect(j).to.have.property('design_id');",
+                "    pm.expect(j.design_id).to.be.a('string').and.not.empty;",
+                "    pm.collectionVariables.set('design_id', j.design_id);",
+                "    console.log('[FLOW-4] Zapisano design_id:', j.design_id);",
+                "});",
+                "pm.test('[FLOW-4] Metadane zawierają rozszerzenie pliku', () => {",
+                "    const j = pm.response.json();",
+                "    pm.expect(j).to.have.property('extension');",
+                "    pm.expect(j.extension).to.be.a('string').and.not.empty;",
+                "});",
+                "pm.test('[FLOW-4] Metadane zawierają rozmiar pliku (file_size > 0)', () => {",
+                "    pm.expect(pm.response.json().file_size).to.be.above(0);",
+                "});",
+                "pm.test('[FLOW-4] Metadane zawierają klucz S3 (s3_key)', () => {",
+                "    const j = pm.response.json();",
+                "    pm.expect(j).to.have.property('s3_key');",
+                "    pm.expect(j.s3_key).to.include(pm.collectionVariables.get('order_id'));",
+                "    pm.collectionVariables.set('s3_key', j.s3_key);",
+                "});",
+                "pm.test('[FLOW-4] s3_key zawiera prawidłową ścieżkę uploads/{order_id}/{filename}', () => {",
+                "    const s3_key = pm.response.json().s3_key;",
+                "    pm.expect(s3_key).to.match(/^uploads\\/.+\\/.+/);",
+                "});",
+                "pm.test('[FLOW-4] order_id w odpowiedzi zgadza się z zamówieniem', () => {",
+                "    pm.expect(pm.response.json().order_id).to.eql(pm.collectionVariables.get('order_id'));",
+                "});",
+                "pm.test('[FLOW-4] uploaded_at jest datą ISO', () => {",
+                "    const uploaded_at = pm.response.json().uploaded_at;",
+                "    pm.expect(new Date(uploaded_at).toString()).to.not.eql('Invalid Date');",
+                "});"
+              ], "type": "text/javascript" }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "order_id", "value": "{{order_id}}", "type": "text" },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Wybierz dowolny plik graficzny (.png, .jpg, .pdf)"
+                }
+              ]
+            },
+            "url": "{{design_service_url}}/designs/upload"
+          }
+        },
+
+        {
+          "name": "FLOW-5 [Query] Pobierz metadane pliku z bazy",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[FLOW-5] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[FLOW-5] Query zwraca plik o poprawnym ID', () => {",
+            "    pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('design_id'));",
+            "});",
+            "pm.test('[FLOW-5] Metadane zawierają wszystkie wymagane pola', () => {",
+            "    const j = pm.response.json();",
+            "    pm.expect(j).to.have.all.keys('id','order_id','filename','extension','file_size','s3_key','uploaded_at');",
+            "});",
+            "pm.test('[FLOW-5] s3_key zgadza się z tym z uploadu', () => {",
+            "    pm.expect(pm.response.json().s3_key).to.eql(pm.collectionVariables.get('s3_key'));",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{design_service_url}}/designs/{{design_id}}" }
+        },
+
+        {
+          "name": "FLOW-6 [Query] Pobierz presigned URL z Amazon S3",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[FLOW-6] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[FLOW-6] Query zwraca download_url', () => {",
+            "    const j = pm.response.json();",
+            "    pm.expect(j).to.have.property('download_url');",
+            "    pm.expect(j.download_url).to.be.a('string').and.not.empty;",
+            "    console.log('[FLOW-6] Presigned URL:', j.download_url.substring(0, 80) + '...');",
+            "});",
+            "pm.test('[FLOW-6] URL zaczyna się od https://', () => {",
+            "    pm.expect(pm.response.json().download_url).to.match(/^https:\\/\\//);",
+            "});",
+            "pm.test('[FLOW-6] URL zawiera nazwę bucketu S3', () => {",
+            "    pm.expect(pm.response.json().download_url).to.include('amazonaws.com');",
+            "});",
+            "pm.test('[FLOW-6] Response zawiera expires_in_seconds', () => {",
+            "    pm.expect(pm.response.json().expires_in_seconds).to.be.above(0);",
+            "});",
+            "pm.test('[FLOW-6] Response zawiera filename', () => {",
+            "    pm.expect(pm.response.json()).to.have.property('filename');",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{design_service_url}}/designs/{{design_id}}/download" }
+        },
+
+        {
+          "name": "FLOW-7 [Query] Lista plików dla zamówienia zawiera wgrany plik",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[FLOW-7] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[FLOW-7] Query zwraca tablicę plików', () => {",
+            "    pm.expect(pm.response.json()).to.be.an('array').and.not.empty;",
+            "});",
+            "pm.test('[FLOW-7] Tablica zawiera wgrany plik', () => {",
+            "    const found = pm.response.json().find(f => f.id === pm.collectionVariables.get('design_id'));",
+            "    pm.expect(found).to.not.be.undefined;",
+            "    pm.expect(found.s3_key).to.not.be.empty;",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{design_service_url}}/designs/?order_id={{order_id}}",
+              "host": ["{{design_service_url}}"],
+              "path": ["designs", ""],
+              "query": [{ "key": "order_id", "value": "{{order_id}}" }]
+            }
+          }
+        },
+
+        {
+          "name": "FLOW-8 [Query] Stan magazynu PRZED rezerwacją",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[FLOW-8] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[FLOW-8] Magazyn zawiera składniki', () => {",
+            "    pm.expect(pm.response.json()).to.be.an('array').and.not.empty;",
+            "});",
+            "pm.test('[FLOW-8] Każdy składnik ma name, quantity, unit', () => {",
+            "    pm.response.json().forEach(i => {",
+            "        pm.expect(i).to.have.property('name');",
+            "        pm.expect(i).to.have.property('quantity');",
+            "        pm.expect(i).to.have.property('unit');",
+            "    });",
+            "});",
+            "// Zapisz stan przed rezerwacją do porównania po",
+            "pm.collectionVariables.set('inventory_before', JSON.stringify(pm.response.json()));"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{inventory_service_url}}/ingredients" }
+        },
+
+        {
+          "name": "FLOW-9 [Command] Zarezerwuj składniki",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[FLOW-9] Status 201 Created', () => pm.response.to.have.status(201));",
+            "pm.test('[FLOW-9] Command potwierdza rezerwację dla właściwego zamówienia', () => {",
+            "    pm.expect(pm.response.json().order_id).to.eql(pm.collectionVariables.get('order_id'));",
+            "});",
+            "pm.test('[FLOW-9] Rezerwacja zawiera listę składników', () => {",
+            "    const j = pm.response.json();",
+            "    pm.expect(j.reservations).to.be.an('array').and.not.empty;",
+            "});",
+            "pm.test('[FLOW-9] Każdy zarezerwowany składnik ma ingredient i quantity > 0', () => {",
+            "    pm.response.json().reservations.forEach(r => {",
+            "        pm.expect(r).to.have.property('ingredient');",
+            "        pm.expect(r.quantity).to.be.above(0);",
+            "    });",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"order_id\": \"{{order_id}}\",\n  \"quantity_multiplier\": 1\n}" },
+            "url": "{{inventory_service_url}}/reserve"
+          }
+        },
+
+        {
+          "name": "FLOW-10 [Query] Stan magazynu ZMNIEJSZYŁ SIĘ po rezerwacji",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[FLOW-10] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[FLOW-10] Stan magazynu zmniejszył się po wykonaniu Command rezerwacji', () => {",
+            "    const before = JSON.parse(pm.collectionVariables.get('inventory_before'));",
+            "    const after  = pm.response.json();",
+            "    const decreased = after.some(itemAfter => {",
+            "        const itemBefore = before.find(b => b.name === itemAfter.name);",
+            "        return itemBefore && itemAfter.quantity < itemBefore.quantity;",
+            "    });",
+            "    pm.expect(decreased).to.be.true;",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{inventory_service_url}}/ingredients" }
+        },
+
+        {
+          "name": "FLOW-11 [Query] Lista rezerwacji dla zamówienia",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[FLOW-11] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[FLOW-11] Query zwraca rezerwacje dla zamówienia', () => {",
+            "    const items = pm.response.json();",
+            "    pm.expect(items).to.be.an('array').and.not.empty;",
+            "    items.forEach(r => pm.expect(r.order_id).to.eql(pm.collectionVariables.get('order_id')));",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{inventory_service_url}}/reservations?order_id={{order_id}}",
+              "host": ["{{inventory_service_url}}"],
+              "path": ["reservations"],
+              "query": [{ "key": "order_id", "value": "{{order_id}}" }]
+            }
+          }
+        },
+
+        {
+          "name": "FLOW-12 [Command] Zrealizuj płatność",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[FLOW-12] Status 201 Created', () => pm.response.to.have.status(201));",
+            "pm.test('[FLOW-12] Command zmienił status płatności na authorized', () => {",
+            "    pm.expect(pm.response.json().status).to.eql('authorized');",
+            "});",
+            "pm.test('[FLOW-12] Kod autoryzacji zaczyna się od AUTH-', () => {",
+            "    pm.expect(pm.response.json().authorization_code).to.match(/^AUTH-/);",
+            "});",
+            "pm.test('[FLOW-12] Kwota i waluta są poprawne', () => {",
+            "    const j = pm.response.json();",
+            "    pm.expect(j.amount).to.eql(149.99);",
+            "    pm.expect(j.currency).to.eql('PLN');",
+            "});",
+            "pm.test('[FLOW-12] order_id w odpowiedzi zgadza się', () => {",
+            "    pm.expect(pm.response.json().order_id).to.eql(pm.collectionVariables.get('order_id'));",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"order_id\": \"{{order_id}}\",\n  \"amount\": 149.99,\n  \"currency\": \"PLN\"\n}" },
+            "url": "{{payment_service_url}}/payments/"
+          }
+        },
+
+        {
+          "name": "FLOW-13 [Query] Pobierz płatność dla zamówienia",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[FLOW-13] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[FLOW-13] Query zwraca płatność powiązaną z zamówieniem', () => {",
+            "    pm.expect(pm.response.json().order_id).to.eql(pm.collectionVariables.get('order_id'));",
+            "});",
+            "pm.test('[FLOW-13] Status płatności to authorized', () => {",
+            "    pm.expect(pm.response.json().status).to.eql('authorized');",
+            "});",
+            "pm.test('[FLOW-13] Kod autoryzacji istnieje', () => {",
+            "    pm.expect(pm.response.json().authorization_code).to.match(/^AUTH-/);",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": { "method": "GET", "url": "{{payment_service_url}}/payments/order/{{order_id}}" }
+        },
+
+        {
+          "name": "FLOW-14 [Command] Aktualizuj status zamówienia na confirmed",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[FLOW-14] Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('[FLOW-14] Command zmienił status na confirmed', () => {",
+            "    pm.expect(pm.response.json().status).to.eql('confirmed');",
+            "});",
+            "pm.test('[FLOW-14] ID zamówienia nie zmieniło się', () => {",
+            "    pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('order_id'));",
+            "});"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"confirmed\"\n}" },
+            "url": "{{order_service_url}}/orders/{{order_id}}/status"
+          }
+        },
+
+        {
+          "name": "FLOW-15 [END-TO-END] NotificationService odebrał eventy z RabbitMQ",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "exec": [
+                "console.log('Czekam 10s na przetworzenie kolejek przez NotificationService...');",
+                "setTimeout(() => {}, 10000);"
+              ], "type": "text/javascript" }
+            },
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "pm.test('[FLOW-15] Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('[FLOW-15] NotificationService zapisał powiadomienia z kolejek RabbitMQ', () => {",
+                "    const notifications = pm.response.json();",
+                "    pm.expect(notifications).to.be.an('array').and.not.empty;",
+                "    console.log('[FLOW-15] Liczba powiadomień:', notifications.length);",
+                "    notifications.forEach(n => console.log(' -', n.notification_type, '|', n.message));",
+                "});",
+                "pm.test('[FLOW-15] Event order_created dotarł z kolejki order.created', () => {",
+                "    const n = pm.response.json().find(n => n.notification_type === 'order_created');",
+                "    pm.expect(n).to.not.be.undefined;",
+                "    pm.expect(n.message).to.include(pm.collectionVariables.get('order_id'));",
+                "});",
+                "pm.test('[FLOW-15] Event design_uploaded dotarł z kolejki design.uploaded', () => {",
+                "    const n = pm.response.json().find(n => n.notification_type === 'design_uploaded');",
+                "    pm.expect(n).to.not.be.undefined;",
+                "});",
+                "pm.test('[FLOW-15] Event inventory_reserved dotarł z kolejki inventory.reserved', () => {",
+                "    const n = pm.response.json().find(n => n.notification_type === 'inventory_reserved');",
+                "    pm.expect(n).to.not.be.undefined;",
+                "});",
+                "pm.test('[FLOW-15] Event payment_processed dotarł z kolejki payment.processed', () => {",
+                "    const n = pm.response.json().find(n => n.notification_type === 'payment_processed');",
+                "    pm.expect(n).to.not.be.undefined;",
+                "    pm.expect(n.message).to.include('AUTH-');",
+                "});"
+              ], "type": "text/javascript" }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{notification_service_url}}/notifications/?order_id={{order_id}}",
+              "host": ["{{notification_service_url}}"],
+              "path": ["notifications", ""],
+              "query": [{ "key": "order_id", "value": "{{order_id}}" }]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
