@@ -9,22 +9,28 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from app.api.routes import router
-from app.infrastructure.sqlite_repository import init_db
+from app.infrastructure.rds_repository import init_db
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-logger.info(f"Załaduję .env z: {env_path}")
-
-logging.basicConfig(level=logging.INFO,
+logging.basicConfig(
+    level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler("payment_service.log")])
+    handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler("payment_service.log")]
+)
 logger = logging.getLogger(__name__)
+logger.info(f"Loading .env from: {env_path}")
+
 
 @asynccontextmanager
 async def lifespan(app):
-    logger.info("PaymentService uruchamianie")
-    await init_db()
+    logger.info("PaymentService starting")
+    try:
+        await init_db()
+        logger.info("PaymentService AWS RDS connection initialized successfully")
+    except Exception as e:
+        logger.error(f"PaymentService failed to initialize AWS connection: {str(e)}", exc_info=True)
+        raise
     yield
+    logger.info("PaymentService stopping")
 
 app = FastAPI(title="PaymentService", version="2.0.0", lifespan=lifespan)
 app.include_router(router)

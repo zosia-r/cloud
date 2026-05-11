@@ -9,23 +9,28 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from app.api.routes import router
-from app.infrastructure.sqlite_repository import init_db
+from app.infrastructure.rds_repository import init_db
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-logger.info(f"Załaduję .env z: {env_path}")
-
-logging.basicConfig(level=logging.INFO,
+logging.basicConfig(
+    level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler("inventory_service.log")])
+    handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler("inventory_service.log")]
+)
 logger = logging.getLogger(__name__)
+logger.info(f"Loading .env from: {env_path}")
+
 
 @asynccontextmanager
 async def lifespan(app):
-    logger.info("InventoryService uruchamianie")
-    await init_db()
+    logger.info("InventoryService starting")
+    try:
+        await init_db()
+        logger.info("InventoryService AWS RDS connection initialized successfully")
+    except Exception as e:
+        logger.error(f"InventoryService failed to initialize AWS connection: {str(e)}", exc_info=True)
+        raise
     yield
-    logger.info("InventoryService zatrzymywanie")
+    logger.info("InventoryService stopping")
 
 app = FastAPI(title="InventoryService", version="2.0.0", lifespan=lifespan)
 app.include_router(router)

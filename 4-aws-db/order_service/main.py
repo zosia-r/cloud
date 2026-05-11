@@ -11,11 +11,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from app.api.routes import router
-from app.infrastructure.sqlite_repository import init_db
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-logger.info(f"Załaduję .env z: {env_path}")
+from app.infrastructure.rds_repository import init_db
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,14 +19,20 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler("order_service.log")]
 )
 logger = logging.getLogger(__name__)
+logger.info(f"Loading .env from: {env_path}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("OrderService uruchamianie")
-    await init_db()
+    logger.info("OrderService starting")
+    try:
+        await init_db()
+        logger.info("OrderService AWS RDS connection initialized successfully")
+    except Exception as e:
+        logger.error(f"OrderService failed to initialize AWS connection: {str(e)}", exc_info=True)
+        raise
     yield
-    logger.info("OrderService zatrzymywanie")
+    logger.info("OrderService stopping")
 
 
 app = FastAPI(title="OrderService", version="2.0.0", lifespan=lifespan)
