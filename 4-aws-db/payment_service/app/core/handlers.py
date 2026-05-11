@@ -2,7 +2,6 @@ import uuid, logging
 from diator.requests import RequestHandler
 from app.domain.models import Payment, PaymentStatus
 from app.core.commands.payment_commands import ProcessPaymentCommand, GetPaymentByOrderQuery, ListPaymentsQuery
-from app.infrastructure.sqlite_repository import SQLitePaymentRepository
 from app.infrastructure.rabbitmq import publish_message
 
 logger = logging.getLogger(__name__)
