@@ -4,8 +4,9 @@ from diator.requests import RequestHandler
 from app.domain.models import DesignFile
 from app.domain.repository import DesignRepository
 from app.core.commands.design_commands import (
-    UploadDesignCommand, GetDesignQuery, GetDownloadUrlQuery, ListDesignsQuery
+    UploadDesignCommand
 )
+from app.core.queries.design_queries import GetDesignQuery, GetDownloadUrlQuery, ListDesignsQuery
 from app.infrastructure.s3_client import upload_file_to_s3, generate_presigned_url
 from app.infrastructure.rabbitmq import publish_message
 

@@ -4,8 +4,9 @@ import logging
 from diator.mediator import Mediator
 from diator.requests import RequestMap
 from app.core.commands.design_commands import (
-    UploadDesignCommand, GetDesignQuery, GetDownloadUrlQuery, ListDesignsQuery
+    UploadDesignCommand
 )
+from app.core.queries.design_queries import GetDesignQuery, GetDownloadUrlQuery, ListDesignsQuery
 from app.core.handlers import (
     UploadDesignHandler, GetDesignHandler,
     GetDownloadUrlHandler, ListDesignsHandler
