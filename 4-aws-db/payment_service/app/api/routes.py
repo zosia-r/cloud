@@ -8,7 +8,7 @@ from di import Container as DILibContainer
 from di.dependent import Dependent
 from app.core.commands.payment_commands import ProcessPaymentCommand, GetPaymentByOrderQuery, ListPaymentsQuery
 from app.core.handlers import ProcessPaymentHandler, GetPaymentByOrderHandler, ListPaymentsHandler
-from app.infrastructure.sqlite_repository import SQLitePaymentRepository
+from app.infrastructure.rds_repository import RDSPaymentRepository
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -29,7 +29,7 @@ def get_mediator() -> Mediator:
     if _mediator is not None:
         return _mediator
     
-    repo = SQLitePaymentRepository()
+    repo = RDSPaymentRepository()
     
     # Create handler instances
     process_handler = ProcessPaymentHandler(repo)

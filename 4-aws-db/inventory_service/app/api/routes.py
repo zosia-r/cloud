@@ -8,8 +8,7 @@ from app.core.commands.inventory_commands import (
     ReserveIngredientsCommand, ListIngredientsQuery, ListReservationsQuery
 )
 from app.core.handlers import ReserveIngredientsHandler, ListIngredientsHandler, ListReservationsHandler
-from app.infrastructure.sqlite_repository import SQLiteIngredientRepository, SQLiteReservationRepository
-
+from app.infrastructure.rds_repository import RDSIngredientRepository, RDSReservationRepository
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["inventory"])
 
@@ -29,8 +28,8 @@ def get_mediator() -> Mediator:
     if _mediator is not None:
         return _mediator
     
-    ing_repo = SQLiteIngredientRepository()
-    res_repo = SQLiteReservationRepository()
+    ing_repo = RDSIngredientRepository()
+    res_repo = RDSReservationRepository()
     
     # Create handler instances
     reserve_handler = ReserveIngredientsHandler(ing_repo, res_repo)

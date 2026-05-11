@@ -10,7 +10,7 @@ from app.core.handlers import (
     CreateOrderHandler, UpdateOrderStatusHandler,
     GetOrderHandler, ListOrdersHandler
 )
-from app.infrastructure.sqlite_repository import SQLiteOrderRepository
+from app.infrastructure.rds_repository import RDSOrderRepository
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -31,7 +31,7 @@ def get_mediator() -> Mediator:
     if _mediator is not None:
         return _mediator
     
-    repo = SQLiteOrderRepository()
+    repo = RDSOrderRepository()
     
     # Create handler instances
     create_order_handler = CreateOrderHandler(repo)
