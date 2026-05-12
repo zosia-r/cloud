@@ -1,0 +1,55 @@
+services:
+    design_service:
+        env_file:
+            - ./.env
+        build:
+            context: .
+            dockerfile: ./docker/base/Dockerfile
+            args:
+                SERVICE_DIR: services/design_service
+        ports:
+            - "8001:8000"
+
+    inventory_service:
+        env_file:
+            - ./.env
+        build:
+            context: .
+            dockerfile: ./docker/base/Dockerfile
+            args:
+                SERVICE_DIR: services/inventory_service
+        ports:
+            - "8002:8000"
+
+    notification_service:
+        env_file:
+            - ./.env
+        build:
+            context: .
+            dockerfile: ./docker/base/Dockerfile
+            args:
+                SERVICE_DIR: services/notification_service
+        ports:
+            - "8003:8000"
+
+    order_service:
+        env_file:
+            - ./.env
+        build:
+            context: .
+            dockerfile: ./docker/base/Dockerfile
+            args:
+                SERVICE_DIR: services/order_service
+        ports:
+            - "8004:8000"
+
+    payment_service:
+        env_file:
+            - ./.env
+        build:
+            context: .
+            dockerfile: ./docker/base/Dockerfile
+            args:
+                SERVICE_DIR: services/payment_service
+        ports:
+            - "8005:8000"
