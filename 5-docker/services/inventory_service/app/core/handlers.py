@@ -4,7 +4,6 @@ from app.domain.models import Reservation
 from app.core.commands.inventory_commands import (
     ReserveIngredientsCommand, ListIngredientsQuery, ListReservationsQuery
 )
-from app.infrastructure.sqlite_repository import SQLiteIngredientRepository, SQLiteReservationRepository
 from app.infrastructure.rabbitmq import publish_message
 
 logger = logging.getLogger(__name__)

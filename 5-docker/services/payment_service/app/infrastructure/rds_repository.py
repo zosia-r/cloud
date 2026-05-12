@@ -103,7 +103,7 @@ class RDSPaymentRepository:
         return Payment(
             id=row["id"],
             order_id=row["order_id"],
-            amount=row["amount"],
+            amount=round(row["amount"], 2),
             currency=row["currency"],
             status=PaymentStatus(row["status"]),
             authorization_code=row["authorization_code"] or "",

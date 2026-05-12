@@ -5,16 +5,31 @@ from botocore.exceptions import ClientError
 from app.domain.models import Notification
 from app.domain.repository import NotificationRepository
 from datetime import datetime
+from app.domain.models import Notification
 import os
+import asyncio
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.DEBUG)  # Set to DEBUG for detailed logs
 
 class DynamoDBNotificationRepository(NotificationRepository):
     def __init__(self):
         self.table_name = os.getenv("NOTIFICATION_TABLE", "notifications")
         self.table = None
+        logger.debug(f"DynamoDBNotificationRepository initialized with table name: {self.table_name} {id(self)}")
+    
+    def check_table_exists(self, dynamodb) -> bool:
+        table = dynamodb.Table(self.table_name)
         
+        try:
+            _ = table.creation_date_time
+            return True
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                return False
+            else:
+                raise
+
     async def init_connection(self):
         """Initialize DynamoDB connection and log result"""
         try:
@@ -27,8 +42,24 @@ class DynamoDBNotificationRepository(NotificationRepository):
                 aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
                 aws_session_token=os.getenv("AWS_SESSION_TOKEN")
             )
-            
-            self.table = dynamodb.Table(self.table_name)
+
+
+            if not self.check_table_exists(dynamodb):
+                logger.info(f"Table '{self.table_name}' does not exist. Attempting to create it.")
+                try:
+                    self.table = dynamodb.create_table(
+                        TableName=self.table_name,
+                        KeySchema=NotificationRepository.KEY_SCHEMA,
+                        AttributeDefinitions=NotificationRepository.ATTRIBUTE_DEFINITIONS,
+                        BillingMode='PAY_PER_REQUEST'
+                    )
+                    self.table.wait_until_exists()
+                    logger.info(f"Table '{self.table_name}' created successfully.")
+                except ClientError as e:
+                    logger.error(f"Failed to create DynamoDB table: {e}", exc_info=True)
+                    raise
+            else:
+                self.table = dynamodb.Table(self.table_name)
             # Test connection by checking table status (optional - may fail due to IAM restrictions)
             try:
                 response = self.table.table_status
@@ -40,6 +71,7 @@ class DynamoDBNotificationRepository(NotificationRepository):
                     logger.error(f"DynamoDB table verification failed: {str(e)}", exc_info=True)
                     raise
             logger.info(f"NotificationService DynamoDB connection initialized (table: {self.table_name})")
+            logger.debug(f"Table identifier: {id(self.table)}")
             
         except Exception as e:
             logger.error(f"DynamoDB connection failed: {str(e)}", exc_info=True)
@@ -66,6 +98,7 @@ class DynamoDBNotificationRepository(NotificationRepository):
     async def find_by_order_id(self, order_id: str) -> List[Notification]:
         logger.info(f"find_by_order_id: order_id={order_id}")
         try:
+            logger.debug(f"Querying DynamoDB table {self.table_name} for notifications with order_id={order_id}")
             response = self.table.query(KeyConditionExpression='order_id = :oid', 
                                        ExpressionAttributeValues={':oid': order_id})
             notifications = [self._item_to_notification(item) for item in response.get('Items', [])]
@@ -78,6 +111,8 @@ class DynamoDBNotificationRepository(NotificationRepository):
     async def find_all(self) -> List[Notification]:
         logger.info("find_all: fetching all notifications")
         try:
+            logger.debug(f"Scanning DynamoDB table {self.table_name} for all notifications")
+            logger.debug(type(self.table))
             response = self.table.scan()
             notifications = [self._item_to_notification(item) for item in response.get('Items', [])]
             logger.info(f"Found {len(notifications)} total notifications")

@@ -6,7 +6,7 @@ import os
 from diator.mediator import Mediator
 from diator.requests import RequestMap
 from app.domain.models import SendNotificationCommand
-from app.infrastructure.sqlite_repository import SQLiteNotificationRepository
+from app.infrastructure.dynamodb_repository import DynamoDBNotificationRepository, get_notification_repository
 from app.core.handlers import SendNotificationHandler
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ async def start_consumer():
 
     channel = await connection.channel()
     await channel.set_qos(prefetch_count=10)
-    repo = SQLiteNotificationRepository()
+    repo = get_notification_repository()
 
     for queue_name in TEMPLATES.keys():
         queue = await channel.declare_queue(queue_name, durable=True)

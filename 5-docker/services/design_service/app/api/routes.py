@@ -11,7 +11,7 @@ from app.core.handlers import (
     UploadDesignHandler, GetDesignHandler,
     GetDownloadUrlHandler, ListDesignsHandler
 )
-from app.infrastructure.dynamodb_repository import DynamoDBDesignRepository
+from app.infrastructure.dynamodb_repository import get_design_repository
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/designs", tags=["designs"])
@@ -32,7 +32,7 @@ def get_mediator() -> Mediator:
     if _mediator is not None:
         return _mediator
     
-    repo = DynamoDBDesignRepository()
+    repo = get_design_repository()
     
     # Create handler instances
     upload_handler = UploadDesignHandler(repo)
