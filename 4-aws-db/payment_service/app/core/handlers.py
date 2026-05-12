@@ -13,14 +13,14 @@ class ProcessPaymentHandler(RequestHandler[ProcessPaymentCommand, str]):
 
     async def handle(self, command: ProcessPaymentCommand) -> str:
         logger.info(f"ProcessPaymentHandler: order_id={command.order_id}, amount={command.amount}")
-        payment = Payment(order_id=command.order_id, amount=command.amount, currency=command.currency)
+        payment = Payment(order_id=command.order_id, amount=round(command.amount, 2), currency=command.currency)
         saved = await self.repo.save(payment)
         auth_code = f"AUTH-{str(uuid.uuid4())[:8].upper()}"
         await self.repo.update_status(saved.id, PaymentStatus.AUTHORIZED, auth_code)
         logger.info(f"ProcessPaymentHandler: payment id={saved.id}, auth_code={auth_code}")
         await publish_message("payment.processed", {
             "payment_id": saved.id, "order_id": command.order_id,
-            "amount": command.amount, "currency": command.currency,
+            "amount": round(command.amount, 2), "currency": command.currency,
             "status": "authorized", "authorization_code": auth_code,
         })
         return saved.id

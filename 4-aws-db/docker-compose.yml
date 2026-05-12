@@ -1,0 +1,70 @@
+services:
+  order_service:
+    build:
+      context: ./order_service
+    env_file:
+      - ./order_service/.env
+    environment:
+      order_service_url: http://order_service:8000
+      design_service_url: http://design_service:8000
+      inventory_service_url: http://inventory_service:8000
+      payment_service_url: http://payment_service:8000
+      notification_service_url: http://notification_service:8000
+    ports:
+      - "8001:8000"
+
+  design_service:
+    build:
+      context: ./design_service
+    env_file:
+      - ./design_service/.env
+    environment:
+      order_service_url: http://order_service:8000
+      design_service_url: http://design_service:8000
+      inventory_service_url: http://inventory_service:8000
+      payment_service_url: http://payment_service:8000
+      notification_service_url: http://notification_service:8000
+    ports:
+      - "8002:8000"
+
+  inventory_service:
+    build:
+      context: ./inventory_service
+    env_file:
+      - ./inventory_service/.env
+    environment:
+      order_service_url: http://order_service:8000
+      design_service_url: http://design_service:8000
+      inventory_service_url: http://inventory_service:8000
+      payment_service_url: http://payment_service:8000
+      notification_service_url: http://notification_service:8000
+    ports:
+      - "8003:8000"
+
+  payment_service:
+    build:
+      context: ./payment_service
+    env_file:
+      - ./payment_service/.env
+    environment:
+      order_service_url: http://order_service:8000
+      design_service_url: http://design_service:8000
+      inventory_service_url: http://inventory_service:8000
+      payment_service_url: http://payment_service:8000
+      notification_service_url: http://notification_service:8000
+    ports:
+      - "8004:8000"
+
+  notification_service:
+    build:
+      context: ./notification_service
+    env_file:
+      - ./notification_service/.env
+    environment:
+      order_service_url: http://order_service:8000
+      design_service_url: http://design_service:8000
+      inventory_service_url: http://inventory_service:8000
+      payment_service_url: http://payment_service:8000
+      notification_service_url: http://notification_service:8000
+    ports:
+      - "8005:8000"

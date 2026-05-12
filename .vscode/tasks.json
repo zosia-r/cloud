@@ -1,0 +1,142 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "folderSelect",
+      "type": "pickString",
+      "description": "Select which folder version to run",
+      "options": [
+        {
+          "label": "1-message-broker",
+          "value": "1-message-broker"
+        },
+        {
+          "label": "2-five-microservices (with cukiernia)",
+          "value": "2-five-microservices/cukiernia"
+        },
+        {
+          "label": "3-aws-s3 (with cukiernia)",
+          "value": "3-aws-s3/cukiernia"
+        },
+        {
+          "label": "4-aws-db (no cukiernia)",
+          "value": "4-aws-db"
+        }
+      ],
+      "default": "2-five-microservices/cukiernia"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "design_service",
+      "type": "shell",
+      "command": "cd \"${workspaceFolder}/${input:folderSelect}/design_service\" && \"/c/Users/Zofia/Desktop/ist/VI/chmurki/cloud/venv/Scripts/python.exe\" -m uvicorn main:app --port 8002 --reload",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^.*$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*",
+          "endsPattern": ".*Uvicorn running.*"
+        }
+      }
+    },
+    {
+      "label": "inventory_service",
+      "type": "shell",
+      "command": "cd \"${workspaceFolder}/${input:folderSelect}/inventory_service\" && \"/c/Users/Zofia/Desktop/ist/VI/chmurki/cloud/venv/Scripts/python.exe\" -m uvicorn main:app --port 8003 --reload",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^.*$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*",
+          "endsPattern": ".*Uvicorn running.*"
+        }
+      }
+    },
+    {
+      "label": "notification_service",
+      "type": "shell",
+      "command": "cd \"${workspaceFolder}/${input:folderSelect}/notification_service\" &
+      & \"/c/Users/Zofia/Desktop/ist/VI/chmurki/cloud/venv/Scripts/python.exe\" -m uvicorn main:app --port 8005 --reload",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^.*$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*",
+          "endsPattern": ".*Uvicorn running.*"
+        }
+      }
+    },
+    {
+      "label": "order_service",
+      "type": "shell",
+      "command": "cd \"${workspaceFolder}/${input:folderSelect}/order_service\" && \"/c/Users/Zofia/Desktop/ist/VI/chmurki/cloud/venv/Scripts/python.exe\" -m uvicorn main:app --port 8001 --reload",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^.*$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*",
+          "endsPattern": ".*Uvicorn running.*"
+        }
+      }
+    },
+    {
+      "label": "payment_service",
+      "type": "shell",
+      "command": "cd \"${workspaceFolder}/${input:folderSelect}/payment_service\" && \"/c/Users/Zofia/Desktop/ist/VI/chmurki/cloud/venv/Scripts/python.exe\" -m uvicorn main:app --port 8004 --reload",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^.*$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*",
+          "endsPattern": ".*Uvicorn running.*"
+        }
+      }
+    },
+    {
+      "label": "Run all services",
+      "dependsOn": [
+        "design_service",
+        "inventory_service",
+        "notification_service",
+        "order_service",
+        "payment_service"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}

@@ -5,8 +5,7 @@ from diator.mediator import Mediator
 from diator.requests import RequestMap
 from app.domain.models import SendNotificationCommand, ListNotificationsQuery
 from app.core.handlers import SendNotificationHandler, ListNotificationsHandler
-from app.infrastructure.dynamodb_repository import DynamoDBNotificationRepository
-
+from app.infrastructure.dynamodb_repository import get_notification_repository
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -26,7 +25,7 @@ def get_mediator() -> Mediator:
     if _mediator is not None:
         return _mediator
     
-    repo = DynamoDBNotificationRepository()
+    repo = get_notification_repository()
     
     # Create handler instances
     send_handler = SendNotificationHandler(repo)
