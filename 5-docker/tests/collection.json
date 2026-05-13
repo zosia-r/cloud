@@ -378,12 +378,6 @@
                     ],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "multipart/form-data"
-                            }
-                        ],
                         "body": {
                             "mode": "formdata",
                             "formdata": [
@@ -489,19 +483,13 @@
                     ],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "multipart/form-data"
-                            }
-                        ],
                         "body": {
                             "mode": "formdata",
                             "formdata": [
                                 {
                                     "key": "file",
                                     "type": "file",
-                                    "src": "5-docker/tests/fixtures/design.txt"
+                                    "src": "tests/fixtures/design.txt"
                                 }
                             ]
                         },
@@ -608,12 +596,6 @@
                     ],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "multipart/form-data"
-                            }
-                        ],
                         "body": {
                             "mode": "formdata",
                             "formdata": [
@@ -625,7 +607,7 @@
                                 {
                                     "key": "file",
                                     "type": "file",
-                                    "src": "5-docker/tests/fixtures/design.txt"
+                                    "src": "tests/fixtures/design.txt"
                                 }
                             ]
                         },
