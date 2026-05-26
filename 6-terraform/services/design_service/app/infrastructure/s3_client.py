@@ -14,7 +14,7 @@ S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "cukiernia-designs-zr")
 
 def get_s3_client():
     logger.info("Tworzenie klienta S3")
-    return boto3.client(
+    return boto3.resource(
         "s3",
         region_name=AWS_REGION,
         aws_access_key_id=AWS_ACCESS_KEY_ID,
@@ -31,8 +31,8 @@ async def upload_file_to_s3(file_content: bytes, s3_key: str, content_type: str 
     logger.info(f"upload_file_to_s3: uploading key={s3_key}, bucket={S3_BUCKET_NAME}, size={len(file_content)} bytes")
     try:
         s3 = get_s3_client()
-        s3.put_object(
-            Bucket=S3_BUCKET_NAME,
+        bucket = s3.Bucket(S3_BUCKET_NAME)
+        bucket.put_object(
             Key=s3_key,
             Body=file_content,
             ContentType=content_type,
@@ -52,7 +52,8 @@ async def generate_presigned_url(s3_key: str, expiration_seconds: int = 3600) ->
     logger.info(f"generate_presigned_url: generuję URL dla key={s3_key}, expiration={expiration_seconds}s")
     try:
         s3 = get_s3_client()
-        url = s3.generate_presigned_url(
+        bucket = s3.Bucket(S3_BUCKET_NAME)
+        url = bucket.meta.client.generate_presigned_url(
             "get_object",
             Params={"Bucket": S3_BUCKET_NAME, "Key": s3_key},
             ExpiresIn=expiration_seconds,

@@ -1,0 +1,17 @@
+aws_region   = "us-east-1"
+project_name = "cukiernia"
+
+rds_password = "CHANGE_ME"
+
+# IAM (set to false if you cannot create roles, then provide ARNs)
+create_iam_roles      = true
+# ecs_execution_role_arn = "arn:aws:iam::ACCOUNT_ID:role/YourExecutionRole"
+# ecs_task_role_arn      = "arn:aws:iam::ACCOUNT_ID:role/YourTaskRole"
+
+order_image        = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/order:latest"
+design_image       = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/design:latest"
+inventory_image    = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/inventory:latest"
+payment_image      = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/payment:latest"
+notification_image = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/notification:latest"
+
+rabbitmq_url = "" # fill if using Amazon MQ or external RabbitMQ

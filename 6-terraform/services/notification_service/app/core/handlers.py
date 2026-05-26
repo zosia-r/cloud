@@ -3,7 +3,7 @@ from diator.requests import RequestHandler
 from app.domain.models import Notification, SendNotificationCommand, ListNotificationsQuery
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.DEBUG)  # Set to DEBUG for detailed logs
 
 class SendNotificationHandler(RequestHandler[SendNotificationCommand, str]):
     def __init__(self, repo):
@@ -21,6 +21,7 @@ class SendNotificationHandler(RequestHandler[SendNotificationCommand, str]):
 class ListNotificationsHandler(RequestHandler[ListNotificationsQuery, list]):
     def __init__(self, repo):
         self.repo = repo
+        logger.debug(f"ListNotificationsHandler initialized with repository: {type(repo).__name__} {id(repo)}")
 
     async def handle(self, query: ListNotificationsQuery):
         if query.order_id:

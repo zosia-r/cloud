@@ -1,0 +1,1127 @@
+{
+    "info": {
+        "name": "System Cukierniczy v3 — AWS DynamoDB + RDS PostgreSQL + S3",
+        "description": "Kompletne testy REST API dla systemu v3 z AWS.\n\nCo testujemy:\n✓ Health checks wszystkich 5 serwisów\n✓ Testy negatywne: walidacja, 404, błędy biznesowe\n✓ Integracja z AWS RDS PostgreSQL (Orders, Payments, Inventory)\n✓ Integracja z AWS DynamoDB (Designs, Notifications)\n✓ Integracja z AWS S3 (Upload/Download plików projektów)\n✓ Pełny end-to-end flow zamówienia\n✓ Komunikacja RabbitMQ i event publishing\n\nPorty:\n- OrderService:        http://localhost:8001 [RDS PostgreSQL]\n- DesignService:       http://localhost:8002 [DynamoDB + S3]\n- InventoryService:    http://localhost:8003 [RDS PostgreSQL]\n- PaymentService:      http://localhost:8004 [RDS PostgreSQL]\n- NotificationService: http://localhost:8005 [DynamoDB + RabbitMQ]",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        { "key": "order_id", "value": "", "type": "string" },
+        { "key": "design_id", "value": "", "type": "string" },
+        { "key": "payment_id", "value": "", "type": "string" },
+        { "key": "customer_email", "value": "", "type": "string" },
+        {
+            "key": "order_service_url",
+            "value": "http://localhost:8001",
+            "type": "string"
+        },
+        {
+            "key": "design_service_url",
+            "value": "http://localhost:8002",
+            "type": "string"
+        },
+        {
+            "key": "inventory_service_url",
+            "value": "http://localhost:8003",
+            "type": "string"
+        },
+        {
+            "key": "payment_service_url",
+            "value": "http://localhost:8004",
+            "type": "string"
+        },
+        {
+            "key": "notification_service_url",
+            "value": "http://localhost:8005",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "1. HEALTH CHECKS — Wszystkie usługi",
+            "item": [
+                {
+                    "name": "HC-1 OrderService /health (RDS PostgreSQL)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[HC-1] Status 200 OK', () => pm.response.to.have.status(200));",
+                                    "pm.test('[HC-1] Zwraca service=OrderService', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j.service).to.eql('OrderService');",
+                                    "});",
+                                    "pm.test('[HC-1] Status ok', () => {",
+                                    "    pm.expect(pm.response.json().status).to.eql('ok');",
+                                    "});",
+                                    "pm.test('[HC-1] Response time < 1s', () => {",
+                                    "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{order_service_url}}/health"
+                    }
+                },
+                {
+                    "name": "HC-2 DesignService /health (AWS DynamoDB)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[HC-2] Status 200 OK', () => pm.response.to.have.status(200));",
+                                    "pm.test('[HC-2] Zwraca service=DesignService', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j.service).to.eql('DesignService');",
+                                    "});",
+                                    "pm.test('[HC-2] Status ok', () => {",
+                                    "    pm.expect(pm.response.json().status).to.eql('ok');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{design_service_url}}/health"
+                    }
+                },
+                {
+                    "name": "HC-3 InventoryService /health (RDS PostgreSQL)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[HC-3] Status 200 OK', () => pm.response.to.have.status(200));",
+                                    "pm.test('[HC-3] Zwraca service=InventoryService', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j.service).to.eql('InventoryService');",
+                                    "});",
+                                    "pm.test('[HC-3] Status ok', () => {",
+                                    "    pm.expect(pm.response.json().status).to.eql('ok');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{inventory_service_url}}/health"
+                    }
+                },
+                {
+                    "name": "HC-4 PaymentService /health (RDS PostgreSQL)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[HC-4] Status 200 OK', () => pm.response.to.have.status(200));",
+                                    "pm.test('[HC-4] Zwraca service=PaymentService', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j.service).to.eql('PaymentService');",
+                                    "});",
+                                    "pm.test('[HC-4] Status ok', () => {",
+                                    "    pm.expect(pm.response.json().status).to.eql('ok');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{payment_service_url}}/health"
+                    }
+                },
+                {
+                    "name": "HC-5 NotificationService /health (DynamoDB + RabbitMQ)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[HC-5] Status 200 OK', () => pm.response.to.have.status(200));",
+                                    "pm.test('[HC-5] Zwraca service=NotificationService', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j.service).to.eql('NotificationService');",
+                                    "});",
+                                    "pm.test('[HC-5] Status ok', () => {",
+                                    "    pm.expect(pm.response.json().status).to.eql('ok');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{notification_service_url}}/health"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "2. NEGATIVE TESTS — Walidacja i błędy",
+            "item": [
+                {
+                    "name": "NEG-1 POST /orders/ — Empty body → 422",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[NEG-1] Status 422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                                    "pm.test('[NEG-1] Zawiera validation errors', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.have.property('detail');",
+                                    "    pm.expect(j.detail).to.be.an('array').and.not.empty;",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": { "mode": "raw", "raw": "{}" },
+                        "url": "{{order_service_url}}/orders/"
+                    }
+                },
+                {
+                    "name": "NEG-2 POST /orders/ — Missing customer_email → 422",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[NEG-2] Status 422', () => pm.response.to.have.status(422));",
+                                    "pm.test('[NEG-2] Detail zawiera field customer_email', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(JSON.stringify(j.detail)).to.include('customer_email');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{ \"customer_name\": \"Jan\", \"product_description\": \"Tort\" }"
+                        },
+                        "url": "{{order_service_url}}/orders/"
+                    }
+                },
+                {
+                    "name": "NEG-3 POST /payments/ — Empty body → 422",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[NEG-3] Status 422', () => pm.response.to.have.status(422));",
+                                    "pm.test('[NEG-3] Validation error detail', () => {",
+                                    "    pm.expect(pm.response.json()).to.have.property('detail');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": { "mode": "raw", "raw": "{}" },
+                        "url": "{{payment_service_url}}/payments/"
+                    }
+                },
+                {
+                    "name": "NEG-4 POST /payments/ — Missing amount → 422",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[NEG-4] Status 422', () => pm.response.to.have.status(422));",
+                                    "pm.test('[NEG-4] Error mentions amount field', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(JSON.stringify(j.detail)).to.include('amount');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{ \"order_id\": \"550e8400-e29b-41d4-a716-446655440000\", \"currency\": \"PLN\" }"
+                        },
+                        "url": "{{payment_service_url}}/payments/"
+                    }
+                },
+                {
+                    "name": "NEG-5 GET /orders/{id} — Non-existent order → 404",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[NEG-5] Status 404 Not Found', () => pm.response.to.have.status(404));",
+                                    "pm.test('[NEG-5] Zwraca detail message', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.have.property('detail');",
+                                    "    pm.expect(j.detail).to.be.a('string').and.not.empty;",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{order_service_url}}/orders/00000000-0000-0000-0000-000000000000"
+                    }
+                },
+                {
+                    "name": "NEG-6 GET /designs/{id} — Non-existent design → 404",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[NEG-6] Status 404', () => pm.response.to.have.status(404));",
+                                    "pm.test('[NEG-6] Zwraca detail', () => {",
+                                    "    pm.expect(pm.response.json()).to.have.property('detail');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{design_service_url}}/designs/nonexistent-design-id"
+                    }
+                },
+                {
+                    "name": "NEG-7 GET /payments/order/{id} — Non-existent order → 404",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[NEG-7] Status 404', () => pm.response.to.have.status(404));",
+                                    "pm.test('[NEG-7] Zwraca detail', () => {",
+                                    "    pm.expect(pm.response.json()).to.have.property('detail');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{payment_service_url}}/payments/order/00000000-0000-0000-0000-000000000000"
+                    }
+                },
+                {
+                    "name": "NEG-8 POST /designs/upload — Missing file → 422",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[NEG-8] Status 422', () => pm.response.to.have.status(422));",
+                                    "pm.test('[NEG-8] Detail zawiera file error', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(JSON.stringify(j.detail)).to.include('file');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "order_id",
+                                    "value": "test-order",
+                                    "type": "text"
+                                }
+                            ]
+                        },
+                        "url": "{{design_service_url}}/designs/upload"
+                    }
+                },
+                {
+                    "name": "NEG-9 POST /reserve — Missing order_id → 422",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[NEG-9] Status 422', () => pm.response.to.have.status(422));",
+                                    "pm.test('[NEG-9] Validation error detail', () => {",
+                                    "    pm.expect(pm.response.json()).to.have.property('detail');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{ \"quantity_multiplier\": 1 }"
+                        },
+                        "url": "{{inventory_service_url}}/reserve"
+                    }
+                },
+                {
+                    "name": "NEG-10 GET /ingredients/{name} — Non-existent → 404",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[NEG-10] Status 404', () => pm.response.to.have.status(404));",
+                                    "pm.test('[NEG-10] Detail message present', () => {",
+                                    "    pm.expect(pm.response.json()).to.have.property('detail');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{inventory_service_url}}/ingredients/nonexistent-ingredient"
+                    }
+                },
+                {
+                    "name": "NEG-11 GET /designs/{id}/download — Non-existent S3 file → 404",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[NEG-11] Status 404', () => pm.response.to.have.status(404));",
+                                    "pm.test('[NEG-11] Error detail present', () => {",
+                                    "    pm.expect(pm.response.json()).to.have.property('detail');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{design_service_url}}/designs/nonexistent-s3-file/download"
+                    }
+                },
+                {
+                    "name": "NEG-12 POST /designs/upload — Missing order_id → 422",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[NEG-12] Status 422', () => pm.response.to.have.status(422));",
+                                    "pm.test('[NEG-12] Detail contains order_id error', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(JSON.stringify(j.detail)).to.include('order_id');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "file",
+                                    "type": "file",
+                                    "src": "tests/fixtures/design.txt"
+                                }
+                            ]
+                        },
+                        "url": "{{design_service_url}}/designs/upload"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "3. FLOW TESTS — Full end-to-end",
+            "item": [
+                {
+                    "name": "SETUP - Clear variables",
+                    "event": [
+                        {
+                            "listen": "prerequest",
+                            "script": {
+                                "exec": [
+                                    "pm.collectionVariables.set('order_id', '');",
+                                    "pm.collectionVariables.set('design_id', '');",
+                                    "pm.collectionVariables.set('payment_id', '');",
+                                    "pm.collectionVariables.set('customer_email', `test_${Date.now()}@example.com`);",
+                                    "console.log('✓ Variables cleared. Email:', pm.collectionVariables.get('customer_email'));"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{order_service_url}}/health"
+                    }
+                },
+                {
+                    "name": "FLOW-1 [Order] Create order in RDS",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[FLOW-1] Status 201 Created', () => pm.response.to.have.status(201));",
+                                    "pm.test('[FLOW-1] Returns valid UUID order_id', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.have.property('order_id');",
+                                    "    pm.expect(j.order_id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);",
+                                    "    pm.collectionVariables.set('order_id', j.order_id);",
+                                    "    console.log('[FLOW-1] ✓ Order created:', j.order_id);",
+                                    "});",
+                                    "pm.test('[FLOW-1] Initial status is pending', () => {",
+                                    "    pm.expect(pm.response.json().status).to.eql('pending');",
+                                    "});",
+                                    "pm.test('[FLOW-1] Contains message', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.have.property('message');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"customer_name\": \"Janusz Kowalski\",\n  \"customer_email\": \"{{customer_email}}\",\n  \"product_description\": \"Tort czekoladowy z owocami\",\n  \"quantity\": 2\n}"
+                        },
+                        "url": "{{order_service_url}}/orders/"
+                    }
+                },
+                {
+                    "name": "FLOW-2 [Design] Upload design to DynamoDB",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[FLOW-2] Status 201 Created', () => pm.response.to.have.status(201));",
+                                    "pm.test('[FLOW-2] Returns design_id', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.have.property('design_id');",
+                                    "    pm.expect(j.design_id).to.be.a('string').and.not.empty;",
+                                    "    pm.collectionVariables.set('design_id', j.design_id);",
+                                    "    console.log('[FLOW-2] ✓ Design uploaded:', j.design_id);",
+                                    "});",
+                                    "pm.test('[FLOW-2] Contains correct order_id', () => {",
+                                    "    pm.expect(pm.response.json().order_id).to.eql(pm.collectionVariables.get('order_id'));",
+                                    "});",
+                                    "pm.test('[FLOW-2] Contains file metadata', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j.filename).to.eql('design.txt');",
+                                    "    pm.expect(j.file_size).to.be.above(0);",
+                                    "    pm.expect(j).to.have.property('s3_key');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "order_id",
+                                    "value": "{{order_id}}",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "file",
+                                    "type": "file",
+                                    "src": "tests/fixtures/design.txt"
+                                }
+                            ]
+                        },
+                        "url": "{{design_service_url}}/designs/upload"
+                    }
+                },
+                {
+                    "name": "FLOW-2b [Design] Get download URL from S3",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[FLOW-2b] Status 200 OK', () => pm.response.to.have.status(200));",
+                                    "pm.test('[FLOW-2b] Download URL returned', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.have.property('download_url');",
+                                    "    pm.expect(j).to.have.property('design_id');",
+                                    "    pm.expect(j).to.have.property('expires_in_seconds');",
+                                    "    pm.collectionVariables.set('download_url', j.download_url);",
+                                    "    console.log('[FLOW-2b] ✓ Download URL:', j.download_url);",
+                                    "});",
+                                    "pm.test('[FLOW-2b] Download URL is valid', () => {",
+                                    "    const url = pm.response.json().download_url;",
+                                    "    pm.expect(url).to.be.a('string').and.not.empty;",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{design_service_url}}/designs/{{design_id}}/download"
+                    }
+                },
+                {
+                    "name": "FLOW-2c [Design] Get design metadata",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[FLOW-2c] Status 200 OK', () => pm.response.to.have.status(200));",
+                                    "pm.test('[FLOW-2c] Design metadata returned', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j.id).to.eql(pm.collectionVariables.get('design_id'));",
+                                    "    pm.expect(j.order_id).to.eql(pm.collectionVariables.get('order_id'));",
+                                    "    pm.expect(j.filename).to.eql('design.txt');",
+                                    "    pm.expect(j.file_size).to.be.above(0);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{design_service_url}}/designs/{{design_id}}"
+                    }
+                },
+                {
+                    "name": "FLOW-3 [Inventory] Reserve ingredients in RDS",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[FLOW-3] Status 201 Created', () => pm.response.to.have.status(201));",
+                                    "pm.test('[FLOW-3] Reservation contains order_id', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j.order_id).to.eql(pm.collectionVariables.get('order_id'));",
+                                    "});",
+                                    "pm.test('[FLOW-3] Returns list of reserved items', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j.reservations).to.be.an('array');",
+                                    "    console.log('[FLOW-3] ✓ Ingredients reserved:', j.reservations.length, 'items');",
+                                    "});",
+                                    "pm.test('[FLOW-3] Each reservation has required fields', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    j.reservations.forEach(r => {",
+                                    "        pm.expect(r).to.have.property('ingredient');",
+                                    "        pm.expect(r).to.have.property('quantity');",
+                                    "    });",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"order_id\": \"{{order_id}}\",\n  \"quantity_multiplier\": 2\n}"
+                        },
+                        "url": "{{inventory_service_url}}/reserve"
+                    }
+                },
+                {
+                    "name": "FLOW-4 [Payment] Process payment in RDS",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[FLOW-4] Status 201 Created', () => pm.response.to.have.status(201));",
+                                    "pm.test('[FLOW-4] Payment status is authorized', () => {",
+                                    "    pm.expect(pm.response.json().status).to.eql('authorized');",
+                                    "});",
+                                    "pm.test('[FLOW-4] Contains payment_id', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.have.property('payment_id');",
+                                    "    pm.collectionVariables.set('payment_id', j.payment_id);",
+                                    "});",
+                                    "pm.test('[FLOW-4] Correct order_id and amount', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j.order_id).to.eql(pm.collectionVariables.get('order_id'));",
+                                    "    pm.expect(j.amount).to.eql(349.99);",
+                                    "    console.log('[FLOW-4] ✓ Payment authorized:', j.payment_id);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"order_id\": \"{{order_id}}\",\n  \"amount\": 349.99,\n  \"currency\": \"PLN\"\n}"
+                        },
+                        "url": "{{payment_service_url}}/payments/"
+                    }
+                },
+                {
+                    "name": "FLOW-5 [Order] Update order status to confirmed",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[FLOW-5] Status 200 OK', () => pm.response.to.have.status(200));",
+                                    "pm.test('[FLOW-5] Status changed to confirmed', () => {",
+                                    "    pm.expect(pm.response.json().status).to.eql('confirmed');",
+                                    "    console.log('[FLOW-5] ✓ Order confirmed');",
+                                    "});",
+                                    "pm.test('[FLOW-5] Order ID matches', () => {",
+                                    "    pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('order_id'));",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{ \"status\": \"confirmed\" }"
+                        },
+                        "url": "{{order_service_url}}/orders/{{order_id}}/status"
+                    }
+                },
+                {
+                    "name": "FLOW-6 [Order] Verify order is confirmed in RDS",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[FLOW-6] Status 200 OK', () => pm.response.to.have.status(200));",
+                                    "pm.test('[FLOW-6] Order status is confirmed', () => {",
+                                    "    pm.expect(pm.response.json().status).to.eql('confirmed');",
+                                    "});",
+                                    "pm.test('[FLOW-6] All fields present', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.have.property('id');",
+                                    "    pm.expect(j).to.have.property('customer_name');",
+                                    "    pm.expect(j).to.have.property('created_at');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{order_service_url}}/orders/{{order_id}}"
+                    }
+                },
+                {
+                    "name": "FLOW-7 [Design] Verify design in DynamoDB",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[FLOW-7] Status 200 OK', () => pm.response.to.have.status(200));",
+                                    "pm.test('[FLOW-7] Design data retrieved from DynamoDB', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j.id).to.eql(pm.collectionVariables.get('design_id'));",
+                                    "    pm.expect(j.order_id).to.eql(pm.collectionVariables.get('order_id'));",
+                                    "});",
+                                    "pm.test('[FLOW-7] Filename and size match', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j.filename).to.eql('design.txt');",
+                                    "    pm.expect(j.file_size).to.be.above(0);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{design_service_url}}/designs/{{design_id}}"
+                    }
+                },
+                {
+                    "name": "FLOW-8 [Payment] Verify payment in RDS",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[FLOW-8] Status 200 OK', () => pm.response.to.have.status(200));",
+                                    "pm.test('[FLOW-8] Payment retrieved from RDS', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j.order_id).to.eql(pm.collectionVariables.get('order_id'));",
+                                    "});",
+                                    "pm.test('[FLOW-8] Payment is authorized', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j.status).to.eql('authorized');",
+                                    "    pm.expect(j.amount).to.eql(349.99);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{payment_service_url}}/payments/order/{{order_id}}"
+                    }
+                },
+                {
+                    "name": "FLOW-9 [Inventory] List ingredients from RDS",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[FLOW-9] Status 200 OK', () => pm.response.to.have.status(200));",
+                                    "pm.test('[FLOW-9] Returns list of ingredients', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.be.an('array').and.not.empty;",
+                                    "    console.log('[FLOW-9] ✓ Total ingredients in stock:', j.length);",
+                                    "});",
+                                    "pm.test('[FLOW-9] Each ingredient has name and quantity', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    j.forEach(ing => {",
+                                    "        pm.expect(ing).to.have.property('name');",
+                                    "        pm.expect(ing).to.have.property('quantity');",
+                                    "    });",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{inventory_service_url}}/ingredients"
+                    }
+                },
+                {
+                    "name": "FLOW-10 [Notification] Check notifications in DynamoDB",
+                    "event": [
+                        {
+                            "listen": "prerequest",
+                            "script": {
+                                "exec": [
+                                    "console.log('Waiting 3s for RabbitMQ events to process...');",
+                                    "setTimeout(() => {}, 3000);"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        },
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[FLOW-10] Status 200 OK', () => pm.response.to.have.status(200));",
+                                    "pm.test('[FLOW-10] Returns list of notifications', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.be.an('array');",
+                                    "    console.log('[FLOW-10] ✓ Notifications retrieved:', j.length, 'items');",
+                                    "});",
+                                    "pm.test('[FLOW-10] Notifications contain order context', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    if (j.length > 0) {",
+                                    "        j.forEach(n => {",
+                                    "            pm.expect(n).to.have.property('id');",
+                                    "            pm.expect(n).to.have.property('message');",
+                                    "        });",
+                                    "    }",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{notification_service_url}}/notifications"
+                    }
+                },
+                {
+                    "name": "FLOW-11 [Order] Get all orders (pagination test)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[FLOW-11] Status 200 OK', () => pm.response.to.have.status(200));",
+                                    "pm.test('[FLOW-11] Returns list of orders', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.be.an('array').and.not.empty;",
+                                    "    console.log('[FLOW-11] ✓ Total orders:', j.length);",
+                                    "});",
+                                    "pm.test('[FLOW-11] Created order is in list', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    const found = j.find(o => o.id === pm.collectionVariables.get('order_id'));",
+                                    "    pm.expect(found).to.exist;",
+                                    "    pm.expect(found.status).to.eql('confirmed');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{order_service_url}}/orders/"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "4. AWS DATABASE VERIFICATION — Direct DB checks",
+            "item": [
+                {
+                    "name": "DB-CHECK-1 [RDS] Get all orders from PostgreSQL",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[DB-CHECK-1] Status 200', () => pm.response.to.have.status(200));",
+                                    "pm.test('[DB-CHECK-1] Orders stored in RDS PostgreSQL', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    console.log('[DB-CHECK-1] ✓ RDS has', j.length, 'orders');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{order_service_url}}/orders/"
+                    }
+                },
+                {
+                    "name": "DB-CHECK-2 [RDS] Get all ingredients from PostgreSQL",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[DB-CHECK-2] Status 200', () => pm.response.to.have.status(200));",
+                                    "pm.test('[DB-CHECK-2] Ingredients in RDS', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.be.an('array');",
+                                    "    console.log('[DB-CHECK-2] ✓ RDS has', j.length, 'ingredients');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{inventory_service_url}}/ingredients"
+                    }
+                },
+                {
+                    "name": "DB-CHECK-3 [RDS] Get all payments from PostgreSQL",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[DB-CHECK-3] Status 200', () => pm.response.to.have.status(200));",
+                                    "pm.test('[DB-CHECK-3] Payments in RDS', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.be.an('array');",
+                                    "    console.log('[DB-CHECK-3] ✓ RDS has', j.length, 'payments');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{payment_service_url}}/payments/"
+                    }
+                },
+                {
+                    "name": "DB-CHECK-4 [DynamoDB] Get all designs",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[DB-CHECK-4] Status 200', () => pm.response.to.have.status(200));",
+                                    "pm.test('[DB-CHECK-4] Designs in DynamoDB', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.be.an('array');",
+                                    "    console.log('[DB-CHECK-4] ✓ DynamoDB has', j.length, 'designs');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{design_service_url}}/designs"
+                    }
+                },
+                {
+                    "name": "DB-CHECK-5 [DynamoDB] Get all notifications",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[DB-CHECK-5] Status 200', () => pm.response.to.have.status(200));",
+                                    "pm.test('[DB-CHECK-5] Notifications in DynamoDB', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.be.an('array');",
+                                    "    console.log('[DB-CHECK-5] ✓ DynamoDB has', j.length, 'notifications');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{notification_service_url}}/notifications"
+                    }
+                },
+                {
+                    "name": "DB-CHECK-6 [S3] Verify uploaded designs in S3",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('[DB-CHECK-6] Status 200', () => pm.response.to.have.status(200));",
+                                    "pm.test('[DB-CHECK-6] Designs with S3 keys returned', () => {",
+                                    "    const j = pm.response.json();",
+                                    "    pm.expect(j).to.be.an('array');",
+                                    "    if (j.length > 0) {",
+                                    "        j.forEach(d => {",
+                                    "            pm.expect(d).to.have.property('s3_key');",
+                                    "            pm.expect(d.s3_key).to.be.a('string').and.not.empty;",
+                                    "        });",
+                                    "    }",
+                                    "    console.log('[DB-CHECK-6] ✓ S3 has', j.length, 'design files');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{design_service_url}}/designs"
+                    }
+                }
+            ]
+        }
+    ]
+}
