@@ -1,3 +1,5 @@
+# definicja osobnego kontenera dla każdego serwisu
+
 services:
     order_service:
         env_file:

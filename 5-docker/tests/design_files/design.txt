@@ -1,0 +1,1 @@
+Sample design file for tests.
