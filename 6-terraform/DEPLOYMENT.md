@@ -12,12 +12,12 @@ Deployment odbywa się w **2 etapach**:
 - 📊 3 bazy PostgreSQL (order, inventory, payment)
 - 📋 2 tabele DynamoDB (design, notification)
 - 🪣 S3 bucket (do przechowywania plików projektów)
-- 🐰 RabbitMQ (opcjonalnie - do komunikacji między serwisami)
+- 🐰 RabbitMQ (do komunikacji między serwisami)
 
 ### Krok 1: Otwórz folder stage1
 
 ```bash
-cd 6-terraform/infra/stage1
+cd 6-terraform/terraform/stage1
 ```
 
 ### Krok 2: Przygotuj plik konfiguracyjny terraform.tfvars
@@ -151,7 +151,7 @@ Dla każdego serwisu musisz:
 1. Zmienić etykietę (tag) obrazu na adres AWS
 2. Wrzucić (push) do AWS
 
-**Dla KAŻDEGO serwisu wykonaj** (zamień `TWOJ_ACCOUNT_ID`):
+**Dla KAŻDEGO serwisu wykonaj**:
 
 ```bash
 # ORDER SERVICE
@@ -188,7 +188,7 @@ Jak się skończy, zobaczysz dla każdego: `Pushed`
 Przejdź do folderu:
 
 ```bash
-cd 6-terraform/infra/stage2
+cd 6-terraform/terraform/stage2
 ```
 
 Skonfiguruj plik konfiguracyjny `terraform.tfvars`:
@@ -252,6 +252,9 @@ service_urls = {
 Możesz je otworzyć w przeglądarce (dodaj `/health` na końcu aby sprawdzić czy serwis żyje):
 - `http://cukiernia-alb-12345.us-east-1.elb.amazonaws.com:8001/health`
 
+Można testować Postmanem:
+collection -> variables -> zmienić url wszystkich serwisów na te z aws
+
 ---
 
 ## 🎉 GOTOWE!
@@ -260,7 +263,7 @@ Twoja aplikacja "Cukiernia" jest na AWS w chmurze!
 
 ⚠️ **Pamiętaj**: Jak skończysz testować, usuń infrastrukturę:
 ```bash
-cd 6-terraform/infra/stage2
+cd 6-terraform/terraform/stage2
 terraform destroy
 cd ../stage1
 terraform destroy
