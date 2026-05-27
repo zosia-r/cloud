@@ -209,6 +209,7 @@ cython_debug/
 **/*.tfstate.*
 **/crash.log
 **/crash.*.log
+terraform.tfvars
 
 # Marimo
 marimo/_static/
