@@ -1,99 +1,267 @@
-# Deployment process (AWS / Azure) – 2 stages
+# 🚀 Deployment - Wdrożenie aplikacji na AWS (instrukcja krok po kroku)
 
-This document describes a **two‑stage deployment** using Docker images from `5-docker` and Terraform.
-
-> **Stage 1** creates databases and shared services (RDS / DynamoDB / S3 / RabbitMQ).  
-> **Stage 2** deploys microservices (ECS/Fargate on AWS or Container Apps/AKS on Azure).
-
----
-
-## ✅ Stage 1 (AWS) – data services
-Terraform folder: `cloud/6-terraform/infra/stage1`
-
-Creates:
-- **RDS PostgreSQL** (3 instances: order/inventory/payment)
-- **DynamoDB** tables (designs + notifications)
-- **S3** bucket for design uploads
-- **Amazon MQ (RabbitMQ)** – optional (`enable_rabbitmq=true`)
-
-### Run
-```/dev/null/terraform-stage1.sh#L1-6
-cd /home/felix/repo/cloud/6-terraform/infra/stage1
-cp terraform.tfvars.example terraform.tfvars
-# edit terraform.tfvars (passwords, region)
-terraform init
-terraform apply
-```
-
-### Outputs (used by Stage 2)
-- `order_rds_endpoint`, `inventory_rds_endpoint`, `payment_rds_endpoint`
-- `rds_port`
-- `order_db_name`, `inventory_db_name`, `payment_db_name`
-- `dynamodb_design_table`, `dynamodb_notification_table`
-- `s3_design_bucket`
-- `rabbitmq_endpoint` (if enabled)
-
-> If your DB is **not** in AWS, you can skip Stage 1 and provide external endpoints in Stage 2.
+Deployment odbywa się w **2 etapach**:
+1. **ETAP 1**: Tworzymy bazy danych i usługi przechowywania (RDS PostgreSQL, DynamoDB, S3, RabbitMQ)
+2. **ETAP 2**: Deployujemy nasze serwisy (Order, Design, Inventory, Payment, Notification) na AWS
 
 ---
 
-## ✅ Stage 2 (AWS) – microservices
-Terraform folder: `cloud/6-terraform/infra/stage2`
+## ETAP 1️⃣ - Tworzenie baz danych na AWS
 
-Deploys:
-- **ECS Fargate** services
-- **Application Load Balancer** with listeners on ports `8001–8005`
-- CloudWatch log groups
-- IAM roles for DynamoDB + S3
+**Co się stanie**: Terraform utworzy na AWS:
+- 📊 3 bazy PostgreSQL (order, inventory, payment)
+- 📋 2 tabele DynamoDB (design, notification)
+- 🪣 S3 bucket (do przechowywania plików projektów)
+- 🐰 RabbitMQ (opcjonalnie - do komunikacji między serwisami)
 
-### 1) Build Docker images (from list #5)
-```/dev/null/build-images.sh#L1-8
-cd /home/felix/repo/cloud/5-docker
+### Krok 1: Otwórz folder stage1
 
-docker build -f docker/base/Dockerfile --build-arg SERVICE_DIR=services/order_service -t order:latest .
-docker build -f docker/base/Dockerfile --build-arg SERVICE_DIR=services/design_service -t design:latest .
-docker build -f docker/base/Dockerfile --build-arg SERVICE_DIR=services/inventory_service -t inventory:latest .
-docker build -f docker/base/Dockerfile --build-arg SERVICE_DIR=services/payment_service -t payment:latest .
-docker build -f docker/base/Dockerfile --build-arg SERVICE_DIR=services/notification_service -t notification:latest .
+```bash
+cd 6-terraform/infra/stage1
 ```
 
-### 2) Push images to a registry (ECR example)
-```/dev/null/push-ecr.sh#L1-9
-AWS_REGION=us-east-1
-ACCOUNT_ID=123456789012
+### Krok 2: Przygotuj plik konfiguracyjny terraform.tfvars
 
-aws ecr create-repository --repository-name order --region $AWS_REGION
-aws ecr create-repository --repository-name design --region $AWS_REGION
-# ...repeat for inventory/payment/notification
 
-aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+### Krok 3: Zaloguj się na AWS
 
-docker tag order:latest ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/order:latest
-# ...repeat for all services
+Musisz najpierw zalogować się do AWS:
 
-docker push ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/order:latest
-# ...repeat for all services
+```bash
+aws configure
 ```
 
-### 3) Deploy with Terraform
-```/dev/null/terraform-stage2.sh#L1-6
-cd /home/felix/repo/cloud/6-terraform/infra/stage2
-cp terraform.tfvars.example terraform.tfvars
-# edit image URIs + db password + rabbitmq_url (if used)
-# db names and username are taken from stage1 outputs
+### Krok 4: Uruchom Terraform ETAP 1
+
+```bash
 terraform init
+```
+
+To pobiera narzędzia Terraform (wykonaj raz).
+
+Teraz tworzymy infrastrukturę:
+
+```bash
 terraform apply
 ```
 
-### Service URLs
-Terraform outputs:
-- `alb_dns_name`
-- `service_urls` → map of URLs (ports 8001–8005)
+Terraform pokaże plan co będzie tworzyć. Wpisz `yes` aby potwierdzić.
+
+⏳ **To trwa 5-15 minut!** Czekaj aż zobaczysz:
+```
+Apply complete! Resources: XX added, 0 changed, 0 destroyed.
+```
+
+✅ **ETAP 1 GOTOWY!** Bazy danych zostały utworzone.
+
+---
+
+## ETAP 2️⃣ - Deployowanie serwisów
+
+**Co się stanie**: 
+1. Zbudujemy Docker obrazy (zrobisz ze swoim kodem)
+2. Wrzucimy obrazy do AWS (ECR - to taki magazyn obrazów AWS)
+3. Terraform uruchomi serwisy na AWS w chmurze
+
+### KROK 1: Budowanie obrazów Docker (na swoim komputerze)
+
+Przejdź do folderu docker:
+
+```bash
+cd 5-docker
+```
+
+Teraz zbuduj **po kolei** każdy obraz. Każda komenda buduje jeden serwis:
+
+```bash
+# Buduj order service
+podman build -f docker/base/Dockerfile --build-arg SERVICE_DIR=services/order_service -t order:latest .
+
+# Buduj design service
+podman build -f docker/base/Dockerfile --build-arg SERVICE_DIR=services/design_service -t design:latest .
+
+# Buduj inventory service
+podman build -f docker/base/Dockerfile --build-arg SERVICE_DIR=services/inventory_service -t inventory:latest .
+
+# Buduj payment service
+podman build -f docker/base/Dockerfile --build-arg SERVICE_DIR=services/payment_service -t payment:latest .
+
+# Buduj notification service
+podman build -f docker/base/Dockerfile --build-arg SERVICE_DIR=services/notification_service -t notification:latest .
+```
+
+⏳ **To trwa kilka minut** (Docker pobiera bazowy obraz, instaluje zależności itp.)
+
+Jak skończy, sprawdź czy się zbudowały:
+```bash
+podman images | grep -E "order|design|inventory|payment|notification"
+```
+
+Powinieneś zobaczyć 5 obrazów.
+
+✅ **Obrazy Docker gotowe!**
+
+---
+
+### KROK 2: Przygotowanie AWS ECR (repozytorium obrazów)
+
+ECR to jak GitHub ale dla obrazów Docker. Musisz tam wrzucić swoje obrazy.
+
+Najpierw pobierz swój **AWS Account ID**:
+
+```bash
+aws sts get-caller-identity --query Account --output text
+```
+
+Zapisz tę liczbę, będziesz jej potrzebować. Na przykład: `123456789012`
+
+Teraz utwórz repozytoria dla każdego serwisu:
+
+```bash
+aws ecr create-repository --repository-name order --region us-east-1
+aws ecr create-repository --repository-name design --region us-east-1
+aws ecr create-repository --repository-name inventory --region us-east-1
+aws ecr create-repository --repository-name payment --region us-east-1
+aws ecr create-repository --repository-name notification --region us-east-1
+```
+
+AWS odpowie że repozytoria zostały utworzone.
+
+✅ **Repozytoria na AWS gotowe!**
+
+---
+
+### KROK 3: Zaloguj Docker do AWS
+
+Teraz powiedz Dockerowi gdzie wrzucać obrazy (adres AWS):
+
+```bash
+aws ecr get-login-password --region us-east-1 | podman login --username AWS --password-stdin 265068570806.dkr.ecr.us-east-1.amazonaws.com
+```
+
+Gdy się zaloguje, powinieneś zobaczyć: `Login Succeeded`
+
+✅ **Docker zalogowany!**
+
+---
+
+### KROK 4: Przygotuj obrazy i wrzuć je do AWS
+
+Dla każdego serwisu musisz:
+1. Zmienić etykietę (tag) obrazu na adres AWS
+2. Wrzucić (push) do AWS
+
+**Dla KAŻDEGO serwisu wykonaj** (zamień `TWOJ_ACCOUNT_ID`):
+
+```bash
+# ORDER SERVICE
+podman tag order:latest 265068570806.dkr.ecr.us-east-1.amazonaws.com/order:latest
+podman push 265068570806.dkr.ecr.us-east-1.amazonaws.com/order:latest
+
+# DESIGN SERVICE
+podman tag design:latest 265068570806.dkr.ecr.us-east-1.amazonaws.com/design:latest
+podman push 265068570806.dkr.ecr.us-east-1.amazonaws.com/design:latest
+
+# INVENTORY SERVICE
+podman tag inventory:latest 265068570806.dkr.ecr.us-east-1.amazonaws.com/inventory:latest
+podman push 265068570806.dkr.ecr.us-east-1.amazonaws.com/inventory:latest
+
+# PAYMENT SERVICE
+podman tag payment:latest 265068570806.dkr.ecr.us-east-1.amazonaws.com/payment:latest
+podman push 265068570806.dkr.ecr.us-east-1.amazonaws.com/payment:latest
+
+# NOTIFICATION SERVICE
+podman tag notification:latest 265068570806.dkr.ecr.us-east-1.amazonaws.com/notification:latest
+podman push 265068570806.dkr.ecr.us-east-1.amazonaws.com/notification:latest
+```
+
+⏳ **To trwa parę minut** (wrzucanie obrazów na AWS)
+
+Jak się skończy, zobaczysz dla każdego: `Pushed`
+
+✅ **Obrazy są na AWS!**
+
+---
+
+### KROK 5: Przygotuj Terraform do stage2
+
+Przejdź do folderu:
+
+```bash
+cd 6-terraform/infra/stage2
+```
+
+Skonfiguruj plik konfiguracyjny `terraform.tfvars`:
 
 
-## Notes
-- Current Terraform uses **local state**. If you need S3 backend + DynamoDB locks, tell me and I’ll add it.
-- Services expect env vars:
-  - `ORDER_DB_HOST`, `INVENTORY_DB_HOST`, `PAYMENT_DB_HOST`, `RDS_USER`, `RDS_PASSWORD`, `RDS_PORT`
-  - `DESIGN_TABLE`, `NOTIFICATION_TABLE`, `S3_BUCKET_NAME`, `AWS_REGION`
-  - `RABBITMQ_URL` (optional)
+✅ **Konfiguracja stage2 gotowa!**
+
+---
+
+### KROK 6: Uruchom Terraform ETAP 2
+
+```bash
+terraform init
+```
+
+```bash
+terraform apply
+```
+
+Wpisz `yes` aby potwierdzić.
+
+⏳ **To trwa 10-20 minut!** Terraform będzie:
+- Tworzyć ECS Cluster
+- Tworzyć Load Balancer
+- Deployować serwisy
+
+Czekaj aż zobaczysz:
+```
+Apply complete! Resources: XX added, 0 changed, 0 destroyed.
+```
+
+---
+
+### KROK 7: Sprawdź adresy serwisów
+
+Po skończeniu, pokaż output:
+
+```bash
+terraform output
+```
+
+Lub konkretnie adresy serwisów:
+
+```bash
+terraform output service_urls
+```
+
+Zobaczysz coś takiego:
+```
+service_urls = {
+  "design"       = "http://cukiernia-alb-12345.us-east-1.elb.amazonaws.com:8002"
+  "inventory"    = "http://cukiernia-alb-12345.us-east-1.elb.amazonaws.com:8003"
+  "notification" = "http://cukiernia-alb-12345.us-east-1.elb.amazonaws.com:8005"
+  "order"        = "http://cukiernia-alb-12345.us-east-1.elb.amazonaws.com:8001"
+  "payment"      = "http://cukiernia-alb-12345.us-east-1.elb.amazonaws.com:8004"
+}
+```
+
+✅ **To są adresy Twoich serwisów na AWS!**
+
+Możesz je otworzyć w przeglądarce (dodaj `/health` na końcu aby sprawdzić czy serwis żyje):
+- `http://cukiernia-alb-12345.us-east-1.elb.amazonaws.com:8001/health`
+
+---
+
+## 🎉 GOTOWE!
+
+Twoja aplikacja "Cukiernia" jest na AWS w chmurze!
+
+⚠️ **Pamiętaj**: Jak skończysz testować, usuń infrastrukturę:
+```bash
+cd 6-terraform/infra/stage2
+terraform destroy
+cd ../stage1
+terraform destroy
+```
