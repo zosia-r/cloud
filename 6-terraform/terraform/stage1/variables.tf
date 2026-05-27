@@ -58,22 +58,6 @@ variable "dynamodb_notification_table" {
   default = "notifications"
 }
 
-variable "enable_rabbitmq" {
-  type    = bool
-  default = false
-}
-
-variable "rabbitmq_username" {
-  type    = string
-  default = "rabbit"
-}
-
-variable "rabbitmq_password" {
-  type      = string
-  sensitive = true
-  default   = ""
-}
-
 variable "aws_access_key_id" {
   type      = string
   sensitive = true

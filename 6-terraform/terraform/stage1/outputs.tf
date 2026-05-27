@@ -54,6 +54,3 @@ output "s3_design_bucket_arn" {
   value = aws_s3_bucket.designs.arn
 }
 
-output "rabbitmq_endpoint" {
-  value = try(aws_mq_broker.rabbitmq[0].instances[0].endpoints[0], "")
-}

@@ -123,38 +123,4 @@ resource "aws_db_instance" "payment" {
   deletion_protection    = false
 }
 
-resource "aws_security_group" "rabbitmq" {
-  count       = var.enable_rabbitmq ? 1 : 0
-  name_prefix = "${var.project_name}-rabbitmq-"
-  vpc_id      = data.aws_vpc.default.id
 
-  ingress {
-    from_port   = 5671
-    to_port     = 5672
-    protocol    = "tcp"
-    cidr_blocks = [data.aws_vpc.default.cidr_block]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-resource "aws_mq_broker" "rabbitmq" {
-  count               = var.enable_rabbitmq ? 1 : 0
-  broker_name         = "${var.project_name}-rabbitmq"
-  engine_type         = "RabbitMQ"
-  engine_version      = "3.11.20"
-  host_instance_type  = "mq.t3.micro"
-  publicly_accessible = true
-  subnet_ids          = slice(data.aws_subnets.default.ids, 0, 2)
-  security_groups     = [aws_security_group.rabbitmq[0].id]
-
-  user {
-    username = var.rabbitmq_username
-    password = var.rabbitmq_password
-  }
-}

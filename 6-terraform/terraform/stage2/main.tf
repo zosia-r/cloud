@@ -18,6 +18,8 @@ data "aws_subnets" "default" {
 
 locals {
   container_port         = 8000
+  lab_role_arn           = "arn:aws:iam::${var.aws_account_id}:role/LabRole"
+  ecr_registry           = "${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com"
   order_rds_endpoint     = data.terraform_remote_state.stage1.outputs.order_rds_endpoint
   inventory_rds_endpoint = data.terraform_remote_state.stage1.outputs.inventory_rds_endpoint
   payment_rds_endpoint   = data.terraform_remote_state.stage1.outputs.payment_rds_endpoint
@@ -29,9 +31,6 @@ locals {
   s3_bucket              = data.terraform_remote_state.stage1.outputs.s3_design_bucket
   design_table           = data.terraform_remote_state.stage1.outputs.dynamodb_design_table
   notify_table           = data.terraform_remote_state.stage1.outputs.dynamodb_notification_table
-
-  ecs_execution_role_arn = var.create_iam_roles ? aws_iam_role.ecs_execution[0].arn : var.ecs_execution_role_arn
-  ecs_task_role_arn      = var.create_iam_roles ? aws_iam_role.ecs_task[0].arn : var.ecs_task_role_arn
 
   rabbitmq_env = var.rabbitmq_url == "" ? [] : [
     { name = "RABBITMQ_URL", value = var.rabbitmq_url }
@@ -45,7 +44,7 @@ locals {
     order = {
       name  = "order"
       port  = 8001
-      image = var.order_image
+      image = "${local.ecr_registry}/order:latest"
       env = concat(local.common_env, [
         { name = "ORDER_DB_HOST", value = local.order_rds_endpoint },
         { name = "RDS_PORT", value = tostring(local.rds_port) },
@@ -57,7 +56,7 @@ locals {
     design = {
       name  = "design"
       port  = 8002
-      image = var.design_image
+      image = "${local.ecr_registry}/design:latest"
       env = concat(local.common_env, [
         { name = "DESIGN_TABLE", value = local.design_table },
         { name = "S3_BUCKET_NAME", value = local.s3_bucket }
@@ -66,7 +65,7 @@ locals {
     inventory = {
       name  = "inventory"
       port  = 8003
-      image = var.inventory_image
+      image = "${local.ecr_registry}/inventory:latest"
       env = concat(local.common_env, [
         { name = "INVENTORY_DB_HOST", value = local.inventory_rds_endpoint },
         { name = "RDS_PORT", value = tostring(local.rds_port) },
@@ -78,7 +77,7 @@ locals {
     payment = {
       name  = "payment"
       port  = 8004
-      image = var.payment_image
+      image = "${local.ecr_registry}/payment:latest"
       env = concat(local.common_env, [
         { name = "PAYMENT_DB_HOST", value = local.payment_rds_endpoint },
         { name = "RDS_PORT", value = tostring(local.rds_port) },
@@ -90,7 +89,7 @@ locals {
     notification = {
       name  = "notification"
       port  = 8005
-      image = var.notification_image
+      image = "${local.ecr_registry}/notification:latest"
       env = concat(local.common_env, [
         { name = "NOTIFICATION_TABLE", value = local.notify_table }
       ])
@@ -102,82 +101,6 @@ resource "aws_ecs_cluster" "main" {
   name = "${var.project_name}-cluster"
 }
 
-resource "aws_iam_role" "ecs_execution" {
-  count = var.create_iam_roles ? 1 : 0
-  name  = "${var.project_name}-ecs-exec"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect    = "Allow"
-        Principal = { Service = "ecs-tasks.amazonaws.com" }
-        Action    = "sts:AssumeRole"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_execution" {
-  count      = var.create_iam_roles ? 1 : 0
-  role       = aws_iam_role.ecs_execution[0].name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-resource "aws_iam_role" "ecs_task" {
-  count = var.create_iam_roles ? 1 : 0
-  name  = "${var.project_name}-ecs-task"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect    = "Allow"
-        Principal = { Service = "ecs-tasks.amazonaws.com" }
-        Action    = "sts:AssumeRole"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_policy" "ecs_task" {
-  count = var.create_iam_roles ? 1 : 0
-  name  = "${var.project_name}-ecs-task-policy"
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "dynamodb:PutItem",
-          "dynamodb:GetItem",
-          "dynamodb:Query",
-          "dynamodb:Scan"
-        ]
-        Resource = [
-          data.terraform_remote_state.stage1.outputs.dynamodb_design_table_arn,
-          data.terraform_remote_state.stage1.outputs.dynamodb_notification_table_arn
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:ListBucket"
-        ]
-        Resource = [
-          data.terraform_remote_state.stage1.outputs.s3_design_bucket_arn,
-          "${data.terraform_remote_state.stage1.outputs.s3_design_bucket_arn}/*"
-        ]
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_task" {
-  count      = var.create_iam_roles ? 1 : 0
-  role       = aws_iam_role.ecs_task[0].name
-  policy_arn = aws_iam_policy.ecs_task[0].arn
-}
 
 resource "aws_cloudwatch_log_group" "service" {
   for_each = local.services
@@ -270,8 +193,8 @@ resource "aws_ecs_task_definition" "service" {
   network_mode             = "awsvpc"
   cpu                      = var.service_cpu
   memory                   = var.service_memory
-  execution_role_arn       = local.ecs_execution_role_arn
-  task_role_arn            = local.ecs_task_role_arn
+  execution_role_arn       = local.lab_role_arn
+  task_role_arn            = local.lab_role_arn
 
   container_definitions = jsonencode([
     {
