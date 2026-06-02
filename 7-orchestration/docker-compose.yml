@@ -1,0 +1,120 @@
+
+services:
+  order_service:
+    image: 7-orchestration-order_service:latest     # używamy zbudowanego wcześniej obrazu
+    env_file:
+      - ./.env
+    ports:
+      - "8001:8000"
+    networks:
+      - app_overlay_net     # przypisujemy kontener do sieci wirtualnej
+    deploy:     # sekcja przeznaczona dla Docker Swarm
+      mode: replicated      # mikroserwis działa w trybie replikacji
+      replicas: 2
+      restart_policy:
+        condition: on-failure       # kontener będzie restartowany tylko w przypadku błędu
+        delay: 5s
+        max_attempts: 3
+      resources:
+        reservations:       # gwarantowane minimum zasobów dla kontenera
+          cpus: '0.05'
+          memory: 60M
+        limits:      # maksymalne zasoby, które kontener może wykorzystać
+          cpus: '0.20'
+          memory: 120M
+
+  design_service:
+    image: 7-orchestration-design_service:latest
+    env_file:
+      - ./.env
+    ports:
+      - "8002:8000"
+    networks:
+      - app_overlay_net
+    deploy:
+      mode: replicated
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        reservations:
+          cpus: '0.05'
+          memory: 80M
+        limits:
+          cpus: '0.20'
+          memory: 150M
+
+  inventory_service:
+    image: 7-orchestration-inventory_service:latest
+    env_file:
+      - ./.env
+    ports:
+      - "8003:8000"
+    networks:
+      - app_overlay_net
+    deploy:
+      mode: replicated
+      replicas: 4
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        reservations:
+          cpus: '0.05'
+          memory: 60M
+        limits:
+          cpus: '0.20'
+          memory: 120M
+
+  payment_service:
+    image: 7-orchestration-payment_service:latest
+    env_file:
+      - ./.env
+    ports:
+      - "8004:8000"
+    networks:
+      - app_overlay_net
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        reservations:
+          cpus: '0.05'
+          memory: 60M
+        limits:
+          cpus: '0.20'
+          memory: 120M
+
+  notification_service:
+    image: 7-orchestration-notification_service:latest
+    env_file:
+      - ./.env
+    ports:
+      - "8005:8000"
+    networks:
+      - app_overlay_net
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        reservations:
+          cpus: '0.05'
+          memory: 60M
+        limits:
+          cpus: '0.20'
+          memory: 120M
+
+networks:           # definiujemy sieć wirtualną typu overlay
+  app_overlay_net:
+    driver: overlay     # pozwala bezpiecznie i szybko komunikować się za pomocą nazw serwisów
