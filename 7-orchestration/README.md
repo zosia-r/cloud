@@ -7,11 +7,11 @@ In this section, we orchestrate our microservices using Docker Swarm.
 ```
 
 ## Deploy the Stack
-```docker deploy -c docker-compose.yml cukiernia
+```docker stack deploy -c docker-compose.yml cukiernia
 ```
 
 ## Verify the Deployment
-```docker stack service ls
+```docker service ls
 ```
 
 ## Verify the Services
